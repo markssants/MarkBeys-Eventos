@@ -12,6 +12,7 @@ export interface EventProject {
   id: string;
   name: string;
   logoUrl?: string;
+  driveUrl?: string;
   contractorId: string;
   designerId: string;
   status: 'planning' | 'ongoing' | 'completed';

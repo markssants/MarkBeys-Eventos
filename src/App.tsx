@@ -12,9 +12,11 @@ import { UserProfile, UserRole } from './types';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { RoleSelection } from './components/auth/RoleSelection';
 import { Button } from '@/components/ui/button';
-import { LogIn, Loader2, Music, Palette, Calendar } from 'lucide-react';
+import { LogIn, Loader2, Music, Palette, Calendar, Lock, ArrowLeft } from 'lucide-react';
 import { Toaster } from '@/components/ui/sonner';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
+import { Input } from '@/components/ui/input';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -100,48 +102,120 @@ export default function App() {
 }
 
 function Landing({ handleLogin, loginLoading }: { handleLogin: () => void, loginLoading: boolean }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const [password, setPassword] = useState('');
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === 'Lince7') {
+      handleLogin();
+    } else {
+      toast.error('Senha incorreta!');
+      setPassword('');
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full text-center space-y-8 glass-card p-12 rounded-3xl"
-      >
-        <div className="flex justify-center space-x-[-12px]">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center transform -rotate-12 shadow-xl">
-            <Palette className="text-white w-8 h-8" />
-          </div>
-          <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center shadow-lg z-10 border border-white/20">
-            <Calendar className="text-pink-400 w-8 h-8" />
-          </div>
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center transform rotate-12 shadow-xl">
-            <Music className="text-white w-8 h-8" />
-          </div>
-        </div>
-        
-        <div className="space-y-4">
-          <h1 className="text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-pink-200 to-slate-400">
-            BEYS ARTS
-          </h1>
-          <p className="text-slate-400 text-lg leading-relaxed">
-            Gestão de eventos e artes em um só lugar. Organize presskits, cronogramas e pagamentos com estilo.
-          </p>
-        </div>
+      <AnimatePresence mode="wait">
+        {!showPassword ? (
+          <motion.div 
+            key="landing-hero"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="max-w-md w-full text-center space-y-8 glass-card p-12 rounded-3xl"
+          >
+            <div className="flex justify-center space-x-[-12px]">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center transform -rotate-12 shadow-xl">
+                <Palette className="text-white w-8 h-8" />
+              </div>
+              <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center shadow-lg z-10 border border-white/20">
+                <Calendar className="text-pink-400 w-8 h-8" />
+              </div>
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-500 to-purple-500 flex items-center justify-center transform rotate-12 shadow-xl">
+                <Music className="text-white w-8 h-8" />
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <h1 className="text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-pink-200 to-slate-400">
+                MARKS EVENTOS
+              </h1>
+              <p className="text-slate-400 text-lg leading-relaxed">
+                Gestão de eventos e artes em um só lugar. Organize presskits, cronogramas e pagamentos.
+              </p>
+            </div>
 
-        <Button 
-          size="lg" 
-          onClick={handleLogin}
-          disabled={loginLoading}
-          className="w-full h-14 text-lg font-bold bg-pink-500 hover:bg-pink-600 text-white transition-all rounded-2xl shadow-[0_0_20px_rgba(236,72,153,0.3)] hover:shadow-[0_0_30px_rgba(236,72,153,0.5)] border-none group"
-        >
-          {loginLoading ? (
-            <Loader2 className="mr-2 w-5 h-5 animate-spin" />
-          ) : (
-            <LogIn className="mr-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          )}
-          {loginLoading ? 'Carregando...' : 'Entrar agora'}
-        </Button>
-      </motion.div>
+            <Button 
+              size="lg" 
+              onClick={() => setShowPassword(true)}
+              className="w-full h-14 text-lg font-bold bg-pink-500 hover:bg-pink-600 text-white transition-all rounded-2xl shadow-[0_0_20px_rgba(236,72,153,0.3)] hover:shadow-[0_0_30_rgba(236,72,153,0.5)] border-none group"
+            >
+              <LogIn className="mr-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              Entrar agora
+            </Button>
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="landing-password"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="max-w-md w-full glass-card p-10 rounded-[2.5rem] border-white/10"
+          >
+            <div className="text-center space-y-6">
+              <div className="w-16 h-16 bg-pink-500/20 rounded-2xl flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(236,72,153,0.1)]">
+                <Lock className="text-pink-500 w-8 h-8" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black text-white tracking-tight">Acesso Restrito</h2>
+                <p className="text-slate-400 text-sm">Insira a senha para prosseguir</p>
+              </div>
+
+              <form onSubmit={handlePasswordSubmit} className="space-y-6">
+                <Input
+                  type="password"
+                  placeholder="••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="rounded-2xl bg-white/5 border-white/10 text-white h-14 text-center text-xl tracking-widest focus:ring-pink-500"
+                  autoFocus
+                />
+                
+                <div className="flex gap-4">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setShowPassword(false)}
+                    className="flex-1 rounded-2xl h-12 text-slate-400 font-bold"
+                  >
+                    <ArrowLeft className="mr-2 w-4 h-4" />
+                    Voltar
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={loginLoading}
+                    className="flex-[2] rounded-2xl h-12 bg-pink-500 hover:bg-pink-600 text-white font-black shadow-[0_0_20px_rgba(236,72,153,0.3)]"
+                  >
+                    {loginLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirmar'}
+                  </Button>
+                </div>
+              </form>
+
+              <div className="pt-4 border-t border-white/5">
+                <Button
+                  variant="link"
+                  className="text-slate-500 hover:text-pink-400 text-xs font-bold uppercase tracking-widest"
+                  onClick={() => window.open('https://wa.me/5519971087116?text=Oi%2C%20preciso%20da%20senha%20pra%20entrar%20no%20gerenciador%20de%20Eventos%20Marks', '_blank')}
+                >
+                  Não tem a senha? Solicitar acesso
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { KanbanBoard } from '../kanban/Board';
 import { DjAssets } from '../dj/DjAssets';
 import { Documents } from '../docs/Documents';
 import { Payments } from '../payments/Payments';
+import { DriveFiles } from '../drive/DriveFiles';
 import { EventSelector } from '../events/EventSelector';
 import { Header } from './Header';
 import { signOut } from 'firebase/auth';
@@ -17,7 +18,7 @@ interface DashboardProps {
   profile: UserProfile;
 }
 
-export type ViewType = 'overview' | 'arts' | 'dj' | 'docs' | 'payments';
+export type ViewType = 'overview' | 'arts' | 'dj' | 'docs' | 'payments' | 'drive';
 
 export function Dashboard({ profile }: DashboardProps) {
   const [activeView, setActiveView] = useState<ViewType>('overview');
@@ -26,11 +27,14 @@ export function Dashboard({ profile }: DashboardProps) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'events'),
-      where(profile.role === 'designer' ? 'designerId' : 'contractorId', '==', profile.id),
-      orderBy('createdAt', 'desc')
-    );
+    const isAdmin = profile.email === 'beysarts@gmail.com';
+    const q = isAdmin 
+      ? query(collection(db, 'events'), orderBy('createdAt', 'desc'))
+      : query(
+          collection(db, 'events'),
+          where(profile.role === 'designer' ? 'designerId' : 'contractorId', '==', profile.id),
+          orderBy('createdAt', 'desc')
+        );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const eventList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EventProject));
@@ -76,7 +80,11 @@ export function Dashboard({ profile }: DashboardProps) {
                   <Palette className="w-10 h-10 text-slate-500" />
                 </div>
                 <h3 className="text-xl font-semibold text-white">Nenhum evento encontrado</h3>
-                <p className="text-slate-400">Comece criando um novo evento para gerenciar suas artes.</p>
+                <p className="text-slate-400">
+                  {profile.email === 'beysarts@gmail.com' 
+                    ? "Comece criando um novo evento para gerenciar suas artes." 
+                    : "Você ainda não foi vinculado a nenhum evento. Aguarde o convite do designer."}
+                </p>
                 <EventSelector 
                   profile={profile} 
                   onEventCreated={(id) => setSelectedEventId(id)}
@@ -91,6 +99,7 @@ export function Dashboard({ profile }: DashboardProps) {
               {activeView === 'arts' && <KanbanBoard event={activeEvent} profile={profile} />}
               {activeView === 'dj' && <DjAssets event={activeEvent} profile={profile} />}
               {activeView === 'docs' && <Documents event={activeEvent} profile={profile} />}
+              {activeView === 'drive' && <DriveFiles event={activeEvent} profile={profile} />}
               {activeView === 'payments' && <Payments event={activeEvent} profile={profile} />}
             </div>
           )}

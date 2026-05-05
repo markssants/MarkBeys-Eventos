@@ -132,11 +132,11 @@
 }
 
 .glass {
-  @apply bg-white/5 border border-white/10 backdrop-blur-md;
+  @apply bg-[#0a0518]/75 border border-white/10 backdrop-blur-xl;
 }
 
 .glass-card {
-  @apply bg-white/5 border border-white/10 backdrop-blur-md hover:bg-white/10 transition-all duration-300;
+  @apply bg-white/5 border border-white/10 backdrop-blur-xl hover:bg-white/10 transition-all duration-300;
 }
 
 .glass-sidebar {

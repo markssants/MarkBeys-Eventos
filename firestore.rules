@@ -15,6 +15,12 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isSignedIn() && 
+             request.auth.token.email == 'beysarts@gmail.com' && 
+             request.auth.token.email_verified == true;
+    }
+
     function isValidId(id) {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]*$');
     }
@@ -29,11 +35,12 @@ service cloud.firestore {
 
     // Event Membership Check
     function isEventMember(eventId) {
-      // Use exists() before get() to avoid errors if doc is missing
-      return isSignedIn() && 
+      return isAdmin() || (
+             isSignedIn() && 
              exists(/databases/$(database)/documents/events/$(eventId)) &&
              (get(/databases/$(database)/documents/events/$(eventId)).data.contractorId == request.auth.uid || 
-              get(/databases/$(database)/documents/events/$(eventId)).data.designerId == request.auth.uid);
+              get(/databases/$(database)/documents/events/$(eventId)).data.designerId == request.auth.uid)
+      );
     }
 
     // --- Users ---
@@ -60,15 +67,16 @@ service cloud.firestore {
       }
 
       allow get: if isEventMember(eventId);
-      allow list: if isSignedIn() && (resource.data.contractorId == request.auth.uid || resource.data.designerId == request.auth.uid);
+      allow list: if isAdmin() || (isSignedIn() && (resource.data.contractorId == request.auth.uid || resource.data.designerId == request.auth.uid));
       
-      allow create: if isSignedIn() &&
-        isValidEvent(incoming()) &&
-        (incoming().designerId == request.auth.uid || incoming().contractorId == request.auth.uid);
+      allow create: if isAdmin() &&
+        isValidId(incoming().contractorId) &&
+        isValidId(incoming().designerId) &&
+        isValidEvent(incoming());
       
       allow update: if isEventMember(eventId) &&
         isValidEvent(incoming()) &&
-        incoming().diff(existing()).affectedKeys().hasAny(['name', 'logoUrl', 'status', 'designerId', 'contractorId']);
+        incoming().diff(existing()).affectedKeys().hasAny(['name', 'logoUrl', 'driveUrl', 'status', 'designerId', 'contractorId']);
     }
 
     // --- Arts ---

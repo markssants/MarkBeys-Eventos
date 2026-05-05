@@ -15,9 +15,10 @@ interface SidebarProps {
 export function Sidebar({ activeView, setActiveView, profile, onLogout }: SidebarProps) {
   const menuItems = [
     { id: 'overview' as ViewType, label: 'Resumo', icon: LayoutDashboard },
-    { id: 'arts' as ViewType, label: 'Artes (Kanban)', icon: Palette },
+    { id: 'arts' as ViewType, label: 'Artes', icon: Palette },
     { id: 'dj' as ViewType, label: 'DJs & Presskits', icon: Music },
-    { id: 'docs' as ViewType, label: 'Documentos', icon: FileText },
+    { id: 'docs' as ViewType, label: 'Corregedoria', icon: FileText },
+    { id: 'drive' as ViewType, label: 'Documentos', icon: FileText },
     { id: 'payments' as ViewType, label: 'Pagamentos', icon: CreditCard },
   ];
 
@@ -26,9 +27,9 @@ export function Sidebar({ activeView, setActiveView, profile, onLogout }: Sideba
       <div className="p-6">
         <div className="flex items-center space-x-3 text-white mb-10 mt-2">
           <div className="w-10 h-10 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-xl flex items-center justify-center font-bold text-xl shadow-[0_0_15px_rgba(236,72,153,0.3)]">
-            B
+            M
           </div>
-          <span className="font-bold tracking-tighter text-xl">BEYS ARTS</span>
+          <span className="font-bold tracking-tighter text-xl">MARKS EVENTOS</span>
         </div>
 
         <nav className="space-y-4">

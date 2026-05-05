@@ -23,6 +23,7 @@ export function EventSelector({ profile, onEventCreated, isMinimal }: EventSelec
   const [contractorEmail, setContractorEmail] = useState('');
   const [designerEmail, setDesignerEmail] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [driveUrl, setDriveUrl] = useState('');
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -33,6 +34,7 @@ export function EventSelector({ profile, onEventCreated, isMinimal }: EventSelec
       const newEvent = {
         name,
         logoUrl: logoUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${name}`,
+        driveUrl,
         contractorId: profile.role === 'contractor' ? profile.id : 'unresolved',
         designerId: profile.role === 'designer' ? profile.id : 'unresolved',
         status: 'planning',
@@ -47,6 +49,7 @@ export function EventSelector({ profile, onEventCreated, isMinimal }: EventSelec
       setOpen(false);
       setName('');
       setLogoUrl('');
+      setDriveUrl('');
       toast.success("Evento criado com sucesso!");
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'events');
@@ -55,6 +58,10 @@ export function EventSelector({ profile, onEventCreated, isMinimal }: EventSelec
       setLoading(false);
     }
   };
+
+  const isAdmin = profile.email === 'beysarts@gmail.com';
+
+  if (!isAdmin) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -85,7 +92,7 @@ export function EventSelector({ profile, onEventCreated, isMinimal }: EventSelec
             <Input 
               id="name" 
               placeholder="Ex: Baile do Beys 2026" 
-              className="rounded-2xl bg-white/5 border-white/10 text-white placeholder:text-slate-700 h-12 focus:ring-pink-500 transition-all font-semibold"
+              className="rounded-2xl bg-white/8 border-white/10 text-white placeholder:text-slate-700 h-12 focus:ring-pink-500 transition-all font-semibold"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -95,9 +102,19 @@ export function EventSelector({ profile, onEventCreated, isMinimal }: EventSelec
             <Input 
               id="logo" 
               placeholder="https://exemplo.com/logo.png" 
-              className="rounded-2xl bg-white/5 border-white/10 text-white placeholder:text-slate-700 h-12 focus:ring-pink-500"
+              className="rounded-2xl bg-white/8 border-white/10 text-white placeholder:text-slate-700 h-12 focus:ring-pink-500"
               value={logoUrl}
               onChange={(e) => setLogoUrl(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="drive" className="text-[10px] uppercase font-black tracking-widest text-slate-500">Link do Drive (Documentos)</Label>
+            <Input 
+              id="drive" 
+              placeholder="https://drive.google.com/..." 
+              className="rounded-2xl bg-white/8 border-white/10 text-white placeholder:text-slate-700 h-12 focus:ring-pink-500"
+              value={driveUrl}
+              onChange={(e) => setDriveUrl(e.target.value)}
             />
           </div>
           {profile.role === 'designer' ? (
@@ -106,7 +123,7 @@ export function EventSelector({ profile, onEventCreated, isMinimal }: EventSelec
               <Input 
                 id="cemail" 
                 placeholder="email@cliente.com" 
-                className="rounded-2xl bg-white/5 border-white/10 text-white placeholder:text-slate-700 h-12"
+                className="rounded-2xl bg-white/8 border-white/10 text-white placeholder:text-slate-700 h-12"
                 value={contractorEmail}
                 onChange={(e) => setContractorEmail(e.target.value)}
               />
@@ -117,7 +134,7 @@ export function EventSelector({ profile, onEventCreated, isMinimal }: EventSelec
               <Input 
                 id="demail" 
                 placeholder="beysarts@gmail.com" 
-                className="rounded-2xl bg-white/5 border-white/10 text-white placeholder:text-slate-700 h-12"
+                className="rounded-2xl bg-white/8 border-white/10 text-white placeholder:text-slate-700 h-12"
                 value={designerEmail}
                 onChange={(e) => setDesignerEmail(e.target.value)}
               />
