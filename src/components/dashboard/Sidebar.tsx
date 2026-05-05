@@ -32,7 +32,7 @@ export function Sidebar({ activeView, setActiveView, profile, onLogout }: Sideba
           <span className="font-bold tracking-tighter text-xl">MARKS EVENTOS</span>
         </div>
 
-        <nav className="space-y-4">
+        <nav className="space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
@@ -41,23 +41,25 @@ export function Sidebar({ activeView, setActiveView, profile, onLogout }: Sideba
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
                 className={cn(
-                  "w-full flex items-center space-x-3 px-4 py-3 rounded-2xl transition-all duration-300 group text-sm font-semibold relative overflow-hidden",
+                  "w-full flex items-center space-x-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group text-sm font-bold relative overflow-hidden",
                   isActive 
-                    ? "text-pink-400" 
-                    : "hover:text-slate-200 hover:bg-white/5"
+                    ? "text-white bg-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]" 
+                    : "text-slate-500 hover:text-slate-200 hover:bg-white/5"
                 )}
               >
+                <div className={cn(
+                  "p-2 rounded-xl transition-all duration-300",
+                  isActive ? "bg-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)]" : "bg-white/5 text-slate-500 group-hover:bg-white/10"
+                )}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <span>{item.label}</span>
                 {isActive && (
                   <motion.div 
-                    layoutId="active-pill"
-                    className="absolute right-0 top-1/4 bottom-1/4 w-1 bg-pink-400 rounded-l-full shadow-[0_0_10px_rgba(236,72,153,0.5)]"
+                    layoutId="active-nav-glow"
+                    className="absolute inset-0 bg-gradient-to-r from-pink-500/10 to-transparent pointer-events-none"
                   />
                 )}
-                <Icon className={cn(
-                  "w-5 h-5 transition-colors duration-300",
-                  isActive ? "text-pink-400" : "text-slate-500 group-hover:text-slate-300"
-                )} />
-                <span>{item.label}</span>
               </button>
             );
           })}

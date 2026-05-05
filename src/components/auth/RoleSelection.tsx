@@ -46,39 +46,54 @@ export function RoleSelection({ onSelect, onLogout }: RoleSelectionProps) {
                 <p className="text-slate-400">Como você pretende usar a plataforma?</p>
               </div>
               
-              <div className="grid md:grid-cols-2 gap-6">
-                <motion.div whileHover={{ y: -5 }}>
+              <div className="grid md:grid-cols-2 gap-8 items-stretch">
+                <motion.div 
+                  whileHover={{ y: -8, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="h-full"
+                >
                   <Card 
-                    className="cursor-pointer glass-card group transition-all h-full rounded-3xl"
+                    className="cursor-pointer glass-card group transition-all h-full rounded-[2.5rem] border-white/5 relative overflow-hidden flex flex-col justify-between"
                     onClick={handleDesignerClick}
                   >
-                    <CardHeader className="text-center pt-10">
-                      <div className="w-20 h-20 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-[0_0_20px_rgba(147,51,234,0.3)] group-hover:shadow-[0_0_30px_rgba(147,51,234,0.5)] transition-all">
-                        <Brush className="text-white w-10 h-10" />
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-purple-500/20 transition-all duration-500" />
+                    <CardHeader className="text-center pt-12">
+                      <div className="w-24 h-24 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl group-hover:rotate-12 transition-transform duration-500 relative">
+                        <div className="absolute inset-0 bg-white/20 rounded-[inherit] animate-pulse" />
+                        <Brush className="text-white w-12 h-12 relative z-10" />
                       </div>
-                      <CardTitle className="text-2xl font-bold text-white">Designer</CardTitle>
-                      <CardDescription className="text-slate-400 text-base mt-2">Para criar, gerenciar e entregar artes.</CardDescription>
+                      <CardTitle className="text-3xl font-black text-white tracking-tighter">Designer</CardTitle>
+                      <CardDescription className="text-slate-400 text-base mt-3 max-w-[200px] mx-auto leading-tight">Gestão criativa e controle total do cronograma.</CardDescription>
                     </CardHeader>
-                    <CardContent className="text-center pb-10 border-t border-white/5 pt-6">
-                      <p className="text-sm text-pink-400 font-bold tracking-wide uppercase italic">"Vou criar as artes e gerenciar o cronograma"</p>
+                    <CardContent className="text-center pb-12 pt-8">
+                      <div className="bg-white/5 py-3 px-6 rounded-2xl border border-white/5 inline-block group-hover:bg-pink-500/10 transition-colors">
+                        <p className="text-[10px] text-pink-400 font-black tracking-[0.2em] uppercase">Acesso Mestre</p>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
 
-                <motion.div whileHover={{ y: -5 }}>
+                <motion.div 
+                  whileHover={{ y: -8, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="h-full"
+                >
                   <Card 
-                    className="cursor-pointer glass-card group transition-all h-full rounded-3xl"
+                    className="cursor-pointer glass-card group transition-all h-full rounded-[2.5rem] border-white/5 relative overflow-hidden flex flex-col justify-between"
                     onClick={() => onSelect('contractor')}
                   >
-                    <CardHeader className="text-center pt-10">
-                      <div className="w-20 h-20 bg-white/5 border-2 border-pink-500/50 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl group-hover:bg-pink-500 transition-all">
-                        <Users className="text-white w-10 h-10" />
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/10 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-pink-500/20 transition-all duration-500" />
+                    <CardHeader className="text-center pt-12">
+                      <div className="w-24 h-24 bg-slate-900 border-2 border-pink-500/30 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl group-hover:bg-pink-500 group-hover:border-pink-400 transition-all duration-500 relative">
+                        <Users className="text-white w-12 h-12 group-hover:scale-110 transition-transform" />
                       </div>
-                      <CardTitle className="text-2xl font-bold text-white">Contratante</CardTitle>
-                      <CardDescription className="text-slate-400 text-base mt-2">Para solicitar artes e acompanhar o projeto.</CardDescription>
+                      <CardTitle className="text-3xl font-black text-white tracking-tighter">Contratante</CardTitle>
+                      <CardDescription className="text-slate-400 text-base mt-3 max-w-[200px] mx-auto leading-tight">Solicitações rápidas e acompanhamento real.</CardDescription>
                     </CardHeader>
-                    <CardContent className="text-center pb-10 border-t border-white/5 pt-6">
-                      <p className="text-sm text-purple-400 font-bold tracking-wide uppercase italic">"Vou contratar artes e fornecer informações dos DJs"</p>
+                    <CardContent className="text-center pb-12 pt-8">
+                      <div className="bg-white/5 py-3 px-6 rounded-2xl border border-white/5 inline-block group-hover:bg-purple-500/10 transition-colors">
+                        <p className="text-[10px] text-purple-400 font-black tracking-[0.2em] uppercase">Vista de Cliente</p>
+                      </div>
                     </CardContent>
                   </Card>
                 </motion.div>
