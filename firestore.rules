@@ -63,7 +63,14 @@ service cloud.firestore {
         return data.name is string && data.name.size() <= 100 &&
                data.status in ['planning', 'ongoing', 'completed'] &&
                isValidId(data.contractorId) &&
-               isValidId(data.designerId);
+               isValidId(data.designerId) &&
+               (!('contractorName' in data) || (data.contractorName is string && data.contractorName.size() <= 100)) &&
+               (!('city' in data) || (data.city is string && data.city.size() <= 100)) &&
+               (!('eventDate' in data) || (data.eventDate is string && data.eventDate.size() <= 50)) &&
+               (!('djCount' in data) || (data.djCount is number)) &&
+               (!('artCount' in data) || (data.artCount is number)) &&
+               (!('motionCount' in data) || (data.motionCount is number)) &&
+               (!('location' in data) || (data.location is string && data.location.size() <= 200));
       }
 
       allow get: if isEventMember(eventId);
@@ -76,7 +83,7 @@ service cloud.firestore {
       
       allow update: if isEventMember(eventId) &&
         isValidEvent(incoming()) &&
-        incoming().diff(existing()).affectedKeys().hasAny(['name', 'logoUrl', 'driveUrl', 'status', 'designerId', 'contractorId']);
+        incoming().diff(existing()).affectedKeys().hasAny(['name', 'logoUrl', 'driveUrl', 'status', 'designerId', 'contractorId', 'contractorName', 'city', 'eventDate', 'djCount', 'artCount', 'motionCount', 'location']);
     }
 
     // --- Arts ---

@@ -13,8 +13,17 @@ export interface EventProject {
   name: string;
   logoUrl?: string;
   driveUrl?: string;
+  contractorName?: string;
+  city?: string;
+  eventDate?: string;
+  djCount?: number;
+  artCount?: number;
+  motionCount?: number;
+  location?: string;
   contractorId: string;
   designerId: string;
+  contractorEmail?: string;
+  designerEmail?: string;
   status: 'planning' | 'ongoing' | 'completed';
   createdAt: any;
 }
@@ -27,7 +36,8 @@ export interface ArtTask {
   priority: 'low' | 'medium' | 'high';
   category: 'dj' | 'party' | 'branding';
   deadline: any;
-  status: 'todo' | 'in-progress' | 'review' | 'done';
+  status: 'todo' | 'production' | 'review' | 'delivered' | 'post' | 'finished';
+  position: number;
   color?: string;
   createdAt: any;
 }

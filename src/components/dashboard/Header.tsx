@@ -11,6 +11,8 @@ interface HeaderProps {
 }
 
 export function Header({ profile, events, selectedEventId, setSelectedEventId }: HeaderProps) {
+  const activeEvent = events.find(e => e.id === selectedEventId);
+
   return (
     <header className="h-24 glass-header px-6 md:px-8 flex items-center justify-between sticky top-0 z-40">
       <div className="flex items-center space-x-6">
@@ -44,7 +46,15 @@ export function Header({ profile, events, selectedEventId, setSelectedEventId }:
         </div>
       </div>
 
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-3">
+        {activeEvent && (
+          <EventSelector 
+            profile={profile} 
+            editEvent={activeEvent} 
+            onEventUpdated={() => {}} // Could trigger a refresh if needed, but onSnapshot usually handles it
+            isMinimal 
+          />
+        )}
         <EventSelector profile={profile} onEventCreated={(id) => setSelectedEventId(id)} isMinimal />
       </div>
     </header>

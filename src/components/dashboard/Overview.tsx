@@ -4,17 +4,18 @@ import { Progress } from "@/components/ui/progress";
 import { EventProject, UserProfile, ArtTask, PaymentItem, OperationType } from "../../types";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db, handleFirestoreError } from "../../firebase";
-import { Palette, CheckCircle2, Clock, AlertCircle, CreditCard, Music } from "lucide-react";
+import { Palette, CheckCircle2, Clock, AlertCircle, CreditCard, Music, MapPin, User, Calendar as CalendarIcon } from "lucide-react";
 import { motion } from "motion/react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { EventSelector } from '../events/EventSelector';
 
 interface OverviewProps {
   event: EventProject;
   profile: UserProfile;
 }
 
-export function Overview({ event }: OverviewProps) {
+export function Overview({ event, profile }: OverviewProps) {
   const [arts, setArts] = useState<ArtTask[]>([]);
   const [payments, setPayments] = useState<PaymentItem[]>([]);
 
@@ -40,9 +41,48 @@ export function Overview({ event }: OverviewProps) {
     };
   }, [event.id]);
 
-  const doneArts = arts.filter(a => a.status === 'done').length;
+  const finishedArts = arts.filter(a => a.status === 'finished').length;
   const totalArts = arts.length;
-  const progress = totalArts > 0 ? (doneArts / totalArts) * 100 : 0;
+  const progress = totalArts > 0 ? (finishedArts / totalArts) * 100 : 0;
+
+  const translateStatus = (statusId: string) => {
+    switch (statusId) {
+      case 'todo': return 'Para Fazer';
+      case 'production': return 'Em Produção';
+      case 'review': return 'Revisão';
+      case 'delivered': return 'Entregue';
+      case 'post': return 'Postar';
+      case 'finished': return 'Finalizado';
+      default: return statusId;
+    }
+  };
+
+  const translateCategory = (cat: string) => {
+    switch (cat) {
+      case 'dj': return 'DJ';
+      case 'party': return 'Festa';
+      case 'branding': return 'Branding';
+      default: return cat;
+    }
+  };
+
+  const translatePriority = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'Urgente';
+      case 'medium': return 'Média';
+      case 'low': return 'Baixa';
+      default: return priority;
+    }
+  };
+
+  const translateEventStatus = (status: string) => {
+    switch (status) {
+      case 'planning': return 'Planejamento';
+      case 'active': return 'Em Andamento';
+      case 'completed': return 'Concluído';
+      default: return status;
+    }
+  };
 
   const paidAmount = payments.filter(p => p.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
   const pendingAmount = payments.filter(p => p.status === 'pending').reduce((acc, curr) => acc + curr.amount, 0);
@@ -53,7 +93,7 @@ export function Overview({ event }: OverviewProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-6 auto-rows-[minmax(180px,auto)] gap-6 p-6">
       {/* 1. Hero Card - Large (4x2) */}
-      <div className="md:col-span-4 md:row-span-2 relative overflow-hidden glass-card rounded-[2.5rem] p-8 md:p-10 text-white flex flex-col justify-between shadow-2xl border-white/5">
+      <div className="md:col-span-4 md:row-span-2 relative overflow-hidden glass-card rounded-[2.5rem] p-6 md:p-8 text-white flex flex-col justify-between shadow-2xl border-white/5">
         <div className="absolute top-0 right-0 w-96 h-96 bg-purple-600 rounded-full blur-[100px] opacity-10 -mr-48 -mt-48 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-pink-600 rounded-full blur-[100px] opacity-10 -ml-48 -mb-48 pointer-events-none"></div>
         
@@ -61,25 +101,62 @@ export function Overview({ event }: OverviewProps) {
           <div className="w-32 h-32 md:w-40 md:h-40 rounded-3xl bg-white/5 backdrop-blur-md p-3 border border-white/20 shadow-2xl shrink-0 overflow-hidden group">
             <img src={event.logoUrl} alt={event.name} className="w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-transform group-hover:scale-110" />
           </div>
-          <div className="text-center md:text-left space-y-3">
-            <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-pink-100 to-slate-400">
-              {event.name}
-            </h2>
+          <div className="text-center md:text-left space-y-4 flex-1">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-pink-100 to-slate-400">
+                {event.name}
+              </h2>
+              <EventSelector profile={profile} editEvent={event} onEventUpdated={() => {}} isMinimal />
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-2">
+              <div className="flex items-center gap-2 text-slate-400">
+                <User className="w-3 h-3 text-pink-400" />
+                <span className="text-[10px] uppercase font-black tracking-widest">{event.contractorName || 'N/A'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-400">
+                <CalendarIcon className="w-3 h-3 text-pink-400" />
+                <span className="text-[10px] uppercase font-black tracking-widest">{event.eventDate || 'Sem Data'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-400">
+                <MapPin className="w-3 h-3 text-pink-400" />
+                <span className="text-[10px] uppercase font-black tracking-widest">{event.city || 'Sem Cidade'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-400">
+                <Music className="w-3 h-3 text-pink-400" />
+                <span className="text-[10px] uppercase font-black tracking-widest">{event.location || 'Sem Local'}</span>
+              </div>
+            </div>
+
             <div className="flex flex-wrap gap-3 pt-2 justify-center md:justify-start">
               <span className="bg-white/5 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 text-slate-300">
-                {event.status}
+                {translateEventStatus(event.status || '')}
               </span>
               <span className="bg-emerald-500/10 text-emerald-400 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 shadow-[0_0_15px_rgba(52,211,153,0.1)]">
                 {Math.round(progress)}% Concluído
               </span>
+              <div className="flex gap-2">
+                <div className="bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2">
+                  <Palette className="w-3 h-3 text-pink-400" />
+                  <span className="text-[10px] font-bold text-white">{event.artCount || 0} Artes</span>
+                </div>
+                <div className="bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2">
+                  <Music className="w-3 h-3 text-purple-400" />
+                  <span className="text-[10px] font-bold text-white">{event.djCount || 0} DJs</span>
+                </div>
+                <div className="bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-2">
+                  <Clock className="w-3 h-3 text-blue-400" />
+                  <span className="text-[10px] font-bold text-white">{event.motionCount || 0} Motions</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="relative z-10 mt-8 space-y-4">
+        <div className="relative z-10 mt-6 space-y-3">
           <div className="flex justify-between items-end mb-1">
             <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Fluxo de Produção Geral</span>
-            <span className="text-3xl font-black text-white">{Math.round(progress)}%</span>
+            <span className="text-2xl font-black text-white">{Math.round(progress)}%</span>
           </div>
           <div className="h-3 w-full bg-white/10 rounded-full overflow-hidden">
             <motion.div 
@@ -90,10 +167,10 @@ export function Overview({ event }: OverviewProps) {
           </div>
           <div className="flex items-center justify-between">
             <p className="text-[11px] text-slate-500 italic">
-              {doneArts} de {totalArts} artes finalizadas e em revisão
+              {finishedArts} de {totalArts} artes finalizadas
             </p>
             <div className="flex -space-x-2">
-              {[...Array(Math.min(doneArts, 5))].map((_, i) => (
+              {[...Array(Math.min(finishedArts, 5))].map((_, i) => (
                 <div key={i} className="w-6 h-6 rounded-full border-2 border-[#0a0518] bg-emerald-500 flex items-center justify-center">
                   <CheckCircle2 className="w-3 h-3 text-white" />
                 </div>
@@ -104,7 +181,7 @@ export function Overview({ event }: OverviewProps) {
       </div>
 
       {/* 2. Total Investment - Small (2x1) */}
-      <div className="md:col-span-2 md:row-span-1 glass-card rounded-[2.5rem] p-8 border-white/5 flex flex-col justify-center relative overflow-hidden group">
+      <div className="md:col-span-2 md:row-span-1 glass-card rounded-[2.5rem] p-6 border-white/5 flex flex-col justify-center relative overflow-hidden group">
         <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-all" />
         <div className="flex items-center space-x-4 mb-4">
           <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
@@ -119,7 +196,7 @@ export function Overview({ event }: OverviewProps) {
       </div>
 
       {/* 3. Next Payment - Small (2x1) */}
-      <div className="md:col-span-2 md:row-span-1 glass-card rounded-[2.5rem] p-8 border-white/5 flex flex-col justify-center relative overflow-hidden group">
+      <div className="md:col-span-2 md:row-span-1 glass-card rounded-[2.5rem] p-6 border-white/5 flex flex-col justify-center relative overflow-hidden group">
         <div className="absolute -right-4 -top-4 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-all" />
         <div className="flex items-center space-x-4 mb-4">
           <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
@@ -138,8 +215,8 @@ export function Overview({ event }: OverviewProps) {
       </div>
 
       {/* 4. Recent Arts - Medium (3x2) */}
-      <div className="md:col-span-3 md:row-span-2 glass-card rounded-[2.5rem] border-white/5 overflow-hidden flex flex-col">
-        <div className="p-8 border-b border-white/5 flex items-center justify-between">
+      <div className="md:col-span-3 md:row-span-2 glass-card rounded-[2.5rem] border-white/5 overflow-hidden flex flex-col text-slate-100">
+        <div className="p-6 border-b border-white/5 flex items-center justify-between">
           <h3 className="text-sm font-black uppercase tracking-widest flex items-center text-pink-400">
             <Clock className="mr-3 w-5 h-5" />
             Ultimas Movimentações
@@ -149,22 +226,24 @@ export function Overview({ event }: OverviewProps) {
         <div className="flex-1 overflow-y-auto max-h-[360px] custom-scrollbar">
           <div className="divide-y divide-white/5">
             {arts.slice(0, 8).map(art => (
-              <div key={art.id} className="p-6 flex items-center justify-between hover:bg-white/5 transition-all group">
+              <div key={art.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-all group">
                 <div className="flex items-center space-x-4">
                   <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Palette className="w-6 h-6 text-slate-400" />
                   </div>
                   <div>
                     <p className="font-bold text-white tracking-tight leading-none mb-1">{art.title}</p>
-                    <p className="text-[10px] text-slate-500 uppercase font-black tracking-wider">{art.category} • {art.priority}</p>
+                    <p className="text-[10px] text-slate-500 uppercase font-black tracking-wider">{translateCategory(art.category)} • {translatePriority(art.priority)}</p>
                   </div>
                 </div>
                 <div className={`w-3 h-3 rounded-full shadow-[0_0_10px_currentColor] ${
-                  art.status === 'done' ? 'text-emerald-500 bg-emerald-500' :
-                  art.status === 'review' ? 'text-amber-500 bg-amber-500' :
-                  art.status === 'in-progress' ? 'text-blue-500 bg-blue-500' :
+                  art.status === 'finished' ? 'text-emerald-500 bg-emerald-500' :
+                  art.status === 'post' ? 'text-pink-500 bg-pink-500' :
+                  art.status === 'delivered' ? 'text-purple-500 bg-purple-500' :
+                  art.status === 'review' ? 'text-blue-500 bg-blue-500' :
+                  art.status === 'production' ? 'text-amber-500 bg-amber-500' :
                   'text-slate-700 bg-slate-700'
-                }`} title={art.status} />
+                }`} title={translateStatus(art.status)} />
               </div>
             ))}
             {arts.length === 0 && (
@@ -175,7 +254,7 @@ export function Overview({ event }: OverviewProps) {
       </div>
 
       {/* 5. Health Details - Medium (3x2) */}
-      <div className="md:col-span-3 md:row-span-2 glass-card rounded-[2.5rem] border-white/5 overflow-hidden p-8 flex flex-col justify-between">
+      <div className="md:col-span-3 md:row-span-2 glass-card rounded-[2.5rem] border-white/5 overflow-hidden p-6 flex flex-col justify-between">
         <div className="space-y-6">
           <h3 className="text-sm font-black uppercase tracking-widest flex items-center text-emerald-400">
             <AlertCircle className="mr-3 w-5 h-5" />
