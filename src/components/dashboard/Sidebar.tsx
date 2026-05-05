@@ -71,7 +71,9 @@ export function Sidebar({ activeView, setActiveView, profile, onLogout }: Sideba
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-white truncate">{profile.name}</p>
-            <p className="text-[10px] text-slate-500 capitalize tracking-widest font-black">{profile.role}</p>
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">
+              {profile.role === 'designer' ? 'Designer' : 'Contratante'}
+            </p>
           </div>
         </div>
         

@@ -61,6 +61,8 @@ export default function App() {
     }
   };
 
+  const handleLogout = () => signOut(auth);
+
   const selectRole = async (role: UserRole) => {
     if (!user) return;
     const newProfile: UserProfile = {
@@ -92,7 +94,7 @@ export default function App() {
         {!user ? (
           <Landing handleLogin={handleLogin} loginLoading={loginLoading} />
         ) : !profile ? (
-          <RoleSelection onSelect={selectRole} />
+          <RoleSelection onSelect={selectRole} onLogout={handleLogout} />
         ) : (
           <Dashboard profile={profile} />
         )}

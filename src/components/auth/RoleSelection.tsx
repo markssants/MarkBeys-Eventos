@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Palette, Users, Brush, Layout, Lock, ArrowLeft } from "lucide-react";
+import { Palette, Users, Brush, Layout, Lock, ArrowLeft, LogOut } from "lucide-react";
 import { UserRole } from "../../types";
 import { motion, AnimatePresence } from "motion/react";
 import { Input } from "@/components/ui/input";
@@ -9,9 +9,10 @@ import { toast } from "sonner";
 
 interface RoleSelectionProps {
   onSelect: (role: UserRole) => void;
+  onLogout: () => void;
 }
 
-export function RoleSelection({ onSelect }: RoleSelectionProps) {
+export function RoleSelection({ onSelect, onLogout }: RoleSelectionProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState("");
 
@@ -30,7 +31,7 @@ export function RoleSelection({ onSelect }: RoleSelectionProps) {
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4">
+    <div className="flex-1 flex flex-col items-center justify-center p-4">
       <div className="max-w-2xl w-full">
         <AnimatePresence mode="wait">
           {!showPassword ? (
@@ -82,7 +83,19 @@ export function RoleSelection({ onSelect }: RoleSelectionProps) {
                   </Card>
                 </motion.div>
               </div>
+
+              <div className="mt-12 text-center">
+                <Button 
+                  variant="ghost" 
+                  onClick={onLogout}
+                  className="text-slate-500 hover:text-white hover:bg-white/5 rounded-2xl h-12 px-8 font-bold"
+                >
+                  <LogOut className="mr-2 w-4 h-4" />
+                  Sair da Conta
+                </Button>
+              </div>
             </motion.div>
+
           ) : (
             <motion.div 
               key="password"
