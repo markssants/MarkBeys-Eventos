@@ -1,0 +1,114 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]*$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Event Membership Check
+    function isEventMember(eventId) {
+      // Use exists() before get() to avoid errors if doc is missing
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/events/$(eventId)) &&
+             (get(/databases/$(database)/documents/events/$(eventId)).data.contractorId == request.auth.uid || 
+              get(/databases/$(database)/documents/events/$(eventId)).data.designerId == request.auth.uid);
+    }
+
+    // --- Users ---
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && 
+        incoming().id == userId &&
+        incoming().role in ['designer', 'contractor'] &&
+        incoming().email == request.auth.token.email &&
+        incoming().createdAt == request.time;
+      allow update: if isOwner(userId) &&
+        incoming().id == userId &&
+        incoming().email == existing().email &&
+        (incoming().role == existing().role || existing().role == null);
+    }
+
+    // --- Events ---
+    match /events/{eventId} {
+      function isValidEvent(data) {
+        return data.name is string && data.name.size() <= 100 &&
+               data.status in ['planning', 'ongoing', 'completed'] &&
+               isValidId(data.contractorId) &&
+               isValidId(data.designerId);
+      }
+
+      allow get: if isEventMember(eventId);
+      allow list: if isSignedIn() && (resource.data.contractorId == request.auth.uid || resource.data.designerId == request.auth.uid);
+      
+      allow create: if isSignedIn() &&
+        isValidEvent(incoming()) &&
+        (incoming().designerId == request.auth.uid || incoming().contractorId == request.auth.uid);
+      
+      allow update: if isEventMember(eventId) &&
+        isValidEvent(incoming()) &&
+        incoming().diff(existing()).affectedKeys().hasAny(['name', 'logoUrl', 'status', 'designerId', 'contractorId']);
+    }
+
+    // --- Arts ---
+    match /events/{eventId}/arts/{artId} {
+      function isValidArt(data) {
+        return data.title is string && data.title.size() <= 100 &&
+               data.priority in ['low', 'medium', 'high'] &&
+               data.status in ['todo', 'in-progress', 'review', 'done'];
+      }
+
+      allow read: if isEventMember(eventId);
+      allow create: if isEventMember(eventId) && isValidArt(incoming());
+      allow update: if isEventMember(eventId) && isValidArt(incoming());
+      allow delete: if isEventMember(eventId);
+    }
+
+    // --- DJ Assets ---
+    match /events/{eventId}/dj_assets/{assetId} {
+      allow read: if isEventMember(eventId);
+      allow create, update: if isEventMember(eventId) && 
+        incoming().name is string && incoming().name.size() <= 100;
+      allow delete: if isEventMember(eventId);
+    }
+
+    // --- Documents ---
+    match /events/{eventId}/documents/{docId} {
+      allow read: if isEventMember(eventId);
+      allow create, update: if isEventMember(eventId) &&
+        incoming().name is string && incoming().name.size() <= 200 &&
+        incoming().type in ['contract', 'receipt'];
+      allow delete: if isEventMember(eventId);
+    }
+
+    // --- Payments ---
+    match /events/{eventId}/payments/{paymentId} {
+      allow read: if isEventMember(eventId);
+      allow create, update: if isEventMember(eventId) &&
+        incoming().amount is number &&
+        incoming().status in ['paid', 'pending'];
+      allow delete: if isEventMember(eventId);
+    }
+  }
+}
