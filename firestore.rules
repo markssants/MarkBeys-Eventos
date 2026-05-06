@@ -91,12 +91,22 @@ service cloud.firestore {
       function isValidArt(data) {
         return data.title is string && data.title.size() <= 100 &&
                data.priority in ['low', 'medium', 'high'] &&
-               data.status in ['todo', 'in-progress', 'review', 'done'];
+               data.status in ['todo', 'production', 'review', 'delivered', 'post', 'finished'] &&
+               data.category in ['dj', 'party', 'branding'] &&
+               data.position is number &&
+               isValidId(data.eventId) &&
+               (!('description' in data) || (data.description is string && data.description.size() <= 2000)) &&
+               (!('deadline' in data) || (data.deadline is string)) &&
+               (!('color' in data) || (data.color is string && data.color.size() <= 20)) &&
+               (!('createdAt' in data) || (data.createdAt is timestamp || data.createdAt == null));
       }
 
       allow read: if isEventMember(eventId);
       allow create: if isEventMember(eventId) && isValidArt(incoming());
-      allow update: if isEventMember(eventId) && isValidArt(incoming());
+      allow update: if isEventMember(eventId) && isValidArt(incoming()) && (
+        isAdmin() || 
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'priority', 'category', 'deadline', 'status', 'position', 'color'])
+      );
       allow delete: if isEventMember(eventId);
     }
 

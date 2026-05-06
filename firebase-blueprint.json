@@ -44,12 +44,13 @@
         "description": { "type": "string" },
         "priority": { "type": "string", "enum": ["low", "medium", "high"] },
         "category": { "type": "string", "enum": ["dj", "party", "branding"] },
-        "deadline": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["todo", "in-progress", "review", "done"] },
+        "deadline": { "type": "string" },
+        "status": { "type": "string", "enum": ["todo", "production", "review", "delivered", "post", "finished"] },
+        "position": { "type": "number" },
         "color": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["eventId", "title", "priority", "status"]
+      "required": ["eventId", "title", "priority", "status", "position"]
     },
     "DjAsset": {
       "title": "DJ Asset",

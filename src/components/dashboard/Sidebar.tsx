@@ -1,4 +1,5 @@
-import { motion } from "motion/react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { LayoutDashboard, Palette, Music, FileText, CreditCard, LogOut, Brush, Users } from "lucide-react";
 import { ViewType } from "./Dashboard";
 import { UserProfile } from "../../types";
@@ -13,6 +14,10 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activeView, setActiveView, profile, onLogout }: SidebarProps) {
+  const [isHovered, setIsHovered] = useState(false);
+  const forceExpanded = activeView === 'overview';
+  const isExpanded = forceExpanded || isHovered;
+
   const menuItems = [
     { id: 'overview' as ViewType, label: 'Resumo', icon: LayoutDashboard },
     { id: 'arts' as ViewType, label: 'Artes', icon: Palette },
@@ -23,16 +28,34 @@ export function Sidebar({ activeView, setActiveView, profile, onLogout }: Sideba
   ];
 
   return (
-    <aside className="w-64 glass-sidebar text-slate-400 flex flex-col hidden md:flex">
-      <div className="p-6">
-        <div className="flex items-center space-x-3 text-white mb-10 mt-2">
-          <div className="w-10 h-10 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-xl flex items-center justify-center font-bold text-xl shadow-[0_0_15px_rgba(236,72,153,0.3)]">
+    <motion.aside 
+      initial={false}
+      animate={{ width: isExpanded ? 256 : 88 }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      className="h-screen glass-sidebar text-slate-400 flex flex-col z-50 overflow-hidden shrink-0"
+    >
+      <div className={cn("flex flex-col flex-1 transition-all duration-300", isExpanded ? "p-6" : "p-4")}>
+        <div className="flex items-center space-x-3 text-white mb-10 mt-2 min-h-[40px] px-2">
+          <div className="w-10 h-10 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-xl flex items-center justify-center font-bold text-xl shadow-[0_0_15px_rgba(236,72,153,0.3)] shrink-0">
             M
           </div>
-          <span className="font-bold tracking-tighter text-xl">MARKS EVENTOS</span>
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.span 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="font-bold tracking-tighter text-xl whitespace-nowrap overflow-hidden"
+              >
+                MARKS EVENTOS
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
 
-        <nav className="space-y-2">
+        <nav className="space-y-2 flex-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
@@ -41,20 +64,35 @@ export function Sidebar({ activeView, setActiveView, profile, onLogout }: Sideba
                 key={item.id}
                 onClick={() => setActiveView(item.id)}
                 className={cn(
-                  "w-full flex items-center space-x-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group text-sm font-bold relative overflow-hidden",
+                  "transition-all duration-300 group text-sm font-bold relative overflow-hidden flex items-center",
                   isActive 
                     ? "text-white bg-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]" 
-                    : "text-slate-500 hover:text-slate-200 hover:bg-white/5"
+                    : "text-slate-500 hover:text-slate-200 hover:bg-white/5",
+                  isExpanded ? "w-full px-4 py-3.5 rounded-2xl" : "w-12 h-12 justify-center rounded-full mx-auto"
                 )}
               >
                 <div className={cn(
-                  "p-2 rounded-xl transition-all duration-300",
-                  isActive ? "bg-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)]" : "bg-white/5 text-slate-500 group-hover:bg-white/10"
+                  "p-2 rounded-xl transition-all duration-300 shrink-0",
+                  isActive ? "bg-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)]" : "bg-white/5 text-slate-500 group-hover:bg-white/10",
+                  isExpanded ? "mr-3" : ""
                 )}>
                   <Icon className="w-4 h-4" />
                 </div>
-                <span>{item.label}</span>
-                {isActive && (
+                
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.span
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className="whitespace-nowrap overflow-hidden"
+                    >
+                      {item.label}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+
+                {isActive && isExpanded && (
                   <motion.div 
                     layoutId="active-nav-glow"
                     className="absolute inset-0 bg-gradient-to-r from-pink-500/10 to-transparent pointer-events-none"
@@ -66,28 +104,46 @@ export function Sidebar({ activeView, setActiveView, profile, onLogout }: Sideba
         </nav>
       </div>
 
-      <div className="mt-auto p-6 space-y-6">
-        <div className="flex items-center space-x-3 px-3 py-4 bg-white/5 rounded-2xl border border-white/5">
-          <div className="w-10 h-10 rounded-full bg-slate-800 border-2 border-pink-500/50 flex items-center justify-center text-slate-100 overflow-hidden">
+      <div className={cn("mt-auto space-y-6 transition-all duration-300", isExpanded ? "p-6" : "p-4")}>
+        <div className={cn(
+          "flex items-center bg-white/5 rounded-2xl border border-white/5 transition-all",
+          isExpanded ? "px-3 py-4 space-x-3" : "w-12 h-12 justify-center rounded-full mx-auto"
+        )}>
+          <div className="w-10 h-10 rounded-full bg-slate-800 border-2 border-pink-500/50 flex items-center justify-center text-slate-100 overflow-hidden shrink-0">
             {profile.role === 'designer' ? <Palette className="w-5 h-5 text-pink-400" /> : <Users className="w-5 h-5 text-purple-400" />}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white truncate">{profile.name}</p>
-            <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">
-              {profile.role === 'designer' ? 'Designer' : 'Contratante'}
-            </p>
-          </div>
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="flex-1 min-w-0"
+              >
+                <p className="text-sm font-bold text-white truncate">{profile.name}</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">
+                  {profile.role === 'designer' ? 'Designer' : 'Contratante'}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         
         <Button 
           variant="ghost" 
           onClick={onLogout}
-          className="w-full justify-start text-slate-500 hover:text-white hover:bg-white/5 rounded-xl border border-transparent hover:border-white/10"
+          className={cn(
+            "justify-between items-center text-slate-500 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all",
+            isExpanded ? "w-full px-4 py-2 rounded-xl" : "w-12 h-12 p-0 justify-center rounded-full mx-auto"
+          )}
         >
-          <LogOut className="mr-2 w-4 h-4 text-pink-500" />
-          Sair
+          <div className="flex items-center">
+            <LogOut className={cn("w-4 h-4 text-pink-500", isExpanded ? "mr-2" : "")} />
+            {isExpanded && <span>Sair</span>}
+          </div>
+          {isExpanded && <span className="text-[9px] text-slate-400 font-black opacity-70 uppercase tracking-widest ml-2">v1.3</span>}
         </Button>
       </div>
-    </aside>
+    </motion.aside>
   );
 }

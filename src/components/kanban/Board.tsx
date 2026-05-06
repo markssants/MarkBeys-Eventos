@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, GripVertical, MessageSquare, Clock, Calendar, Palette, MoreHorizontal, User, ChevronLeft, ChevronRight, Music, PartyPopper, Star, AlertTriangle } from "lucide-react";
+import { Plus, GripVertical, MessageSquare, Clock, Calendar, Palette, MoreHorizontal, User, ChevronLeft, ChevronRight, Music, PartyPopper, Star, AlertTriangle, List, Layout, GanttChart } from "lucide-react";
 import { EventProject, UserProfile, ArtTask, OperationType } from "../../types";
 import { collection, query, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, deleteDoc, orderBy } from "firebase/firestore";
 import { db, handleFirestoreError } from "../../firebase";
@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday, isThisWeek, addWeeks, isSameWeek, isAfter } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -36,11 +36,14 @@ const COLUMNS: { id: ColumnId; title: string; color: string; textColor: string }
 ];
 
 export function KanbanBoard({ event, profile }: KanbanBoardProps) {
+  const [viewMode, setViewMode] = useState<'kanban' | 'calendar' | 'timeline' | 'list'>('kanban');
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [arts, setArts] = useState<ArtTask[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [priorityFilter, setPriorityFilter] = useState<'all' | 'low' | 'medium' | 'high'>('all');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'dj' | 'party' | 'branding'>('all');
+  const [statusFilter, setStatusFilter] = useState<ColumnId | 'all'>('all');
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Form states
@@ -50,7 +53,8 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
     priority: 'medium' as const,
     category: 'dj' as const,
     deadline: '',
-    color: '#000000'
+    color: '#000000',
+    status: 'todo' as ColumnId
   });
 
   const [selectedArt, setSelectedArt] = useState<ArtTask | null>(null);
@@ -85,10 +89,11 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
   const handleAddArt = async () => {
     if (!newArt.title.trim()) return;
     setLoading(true);
+    const status = newArt.status;
     const path = `events/${event.id}/arts`;
     
     // Calculate new position
-    const columnArts = arts.filter(a => a.status === 'todo');
+    const columnArts = arts.filter(a => a.status === status);
     const maxPosition = columnArts.length > 0 
       ? Math.max(...columnArts.map(a => a.position || 0))
       : 0;
@@ -97,13 +102,21 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
       await addDoc(collection(db, 'events', event.id, 'arts'), {
         ...newArt,
         eventId: event.id,
-        status: 'todo',
+        status: status,
         position: maxPosition + 1000, // Large gap for easier reordering if needed
         createdAt: serverTimestamp(),
       });
       setIsAddOpen(false);
-      setNewArt({ title: '', description: '', priority: 'medium', category: 'dj', deadline: '', color: '#000000' });
-      toast.success("Arte adicionada ao cronograma!");
+      setNewArt({ 
+        title: '', 
+        description: '', 
+        priority: 'medium', 
+        category: 'dj', 
+        deadline: '', 
+        color: '#000000',
+        status: 'todo'
+      });
+      toast.success(`Arte adicionada em ${translateStatus(status)}!`);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, path);
       toast.error("Erro ao adicionar arte");
@@ -215,11 +228,65 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
     }
   };
 
-  const filteredArts = arts.filter(a => {
-    const matchesPriority = priorityFilter === 'all' || a.priority === priorityFilter;
-    const matchesCategory = categoryFilter === 'all' || a.category === categoryFilter;
-    return matchesPriority && matchesCategory;
-  });
+  const filteredArts = useMemo(() => {
+    return arts.filter(a => {
+      const matchesPriority = priorityFilter === 'all' || a.priority === priorityFilter;
+      const matchesCategory = categoryFilter === 'all' || a.category === categoryFilter;
+      const matchesStatus = statusFilter === 'all' || a.status === statusFilter;
+      return matchesPriority && matchesCategory && matchesStatus;
+    });
+  }, [arts, priorityFilter, categoryFilter, statusFilter]);
+
+  const calendarDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 0 });
+    const end = endOfWeek(endOfMonth(currentMonth), { weekStartsOn: 0 });
+    return eachDayOfInterval({ start, end });
+  }, [currentMonth]);
+
+  const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  const timelineData = useMemo(() => {
+    const grouped = filteredArts.reduce((acc, art) => {
+      const date = art.deadline || 'Sem Prazo';
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(art);
+      return acc;
+    }, {} as Record<string, ArtTask[]>);
+
+    return Object.entries(grouped).sort(([a], [b]) => {
+      if (a === 'Sem Prazo') return 1;
+      if (b === 'Sem Prazo') return -1;
+      return new Date(a).getTime() - new Date(b).getTime();
+    });
+  }, [filteredArts]);
+
+  const summaryStats = useMemo(() => {
+    const now = new Date();
+    const nextWeekStart = startOfWeek(addWeeks(now, 1), { weekStartsOn: 0 });
+    
+    return {
+      urgent: filteredArts.filter(a => 
+        a.priority === 'high' && 
+        !['finished', 'delivered'].includes(a.status) && 
+        a.deadline && isThisWeek(new Date(a.deadline), { weekStartsOn: 0 })
+      ).length,
+      medium: filteredArts.filter(a => 
+        a.priority === 'medium' && 
+        !['finished', 'delivered'].includes(a.status) && 
+        a.deadline && isSameWeek(new Date(a.deadline), addWeeks(now, 1), { weekStartsOn: 0 })
+      ).length,
+      low: filteredArts.filter(a => 
+        !['finished', 'delivered'].includes(a.status) && 
+        (a.priority === 'low' || !a.deadline || isAfter(new Date(a.deadline), endOfWeek(addWeeks(now, 1), { weekStartsOn: 0 })))
+      ).filter(a => {
+        // Exclude those already counted in urgent/medium if they overlap
+        const isUrgent = a.priority === 'high' && a.deadline && isThisWeek(new Date(a.deadline), { weekStartsOn: 0 });
+        const isMedium = a.priority === 'medium' && a.deadline && isSameWeek(new Date(a.deadline), addWeeks(now, 1), { weekStartsOn: 0 });
+        return !isUrgent && !isMedium;
+      }).length,
+      completed: filteredArts.filter(a => ['finished', 'delivered'].includes(a.status)).length
+    };
+  }, [filteredArts]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -296,6 +363,58 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
 
   return (
     <div className="space-y-8 p-6">
+      {/* View Switcher Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-black/40 p-2 rounded-[2rem] border border-white/5">
+        <div className="flex items-center gap-1 p-1 bg-white/5 rounded-2xl border border-white/5">
+          <button 
+            onClick={() => setViewMode('kanban')}
+            className={cn(
+              "flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+              viewMode === 'kanban' ? "bg-white/10 text-white shadow-xl" : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.02]"
+            )}
+          >
+            <Layout className="w-4 h-4" />
+            <span>Kanban</span>
+          </button>
+          <button 
+            onClick={() => setViewMode('calendar')}
+            className={cn(
+              "flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+              viewMode === 'calendar' ? "bg-white/10 text-white shadow-xl" : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.02]"
+            )}
+          >
+            <Calendar className="w-4 h-4" />
+            <span>Calendário</span>
+          </button>
+          <button 
+            onClick={() => setViewMode('timeline')}
+            className={cn(
+              "flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+              viewMode === 'timeline' ? "bg-white/10 text-white shadow-xl" : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.02]"
+            )}
+          >
+            <GanttChart className="w-4 h-4" />
+            <span>Timeline</span>
+          </button>
+          <button 
+            onClick={() => setViewMode('list')}
+            className={cn(
+              "flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
+              viewMode === 'list' ? "bg-white/10 text-white shadow-xl" : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.02]"
+            )}
+          >
+            <List className="w-4 h-4" />
+            <span>Lista</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="bg-white/5 border-white/10 text-slate-400 font-bold uppercase tracking-widest text-[9px] rounded-full px-4 h-10 flex items-center">
+            {arts.length} Artes no Total
+          </Badge>
+        </div>
+      </div>
+
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 bg-white/[0.02] p-6 rounded-[2.5rem] border border-white/5 shadow-inner">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2 mb-1">
@@ -334,6 +453,26 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
               ⭐ Branding
             </Button>
           </div>
+        </div>
+
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Layout className="w-3.5 h-3.5 text-blue-500" />
+            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Filtrar por Status</h2>
+          </div>
+          <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+            <SelectTrigger className="w-[180px] rounded-xl bg-white/5 border-white/5 text-[10px] font-black uppercase tracking-widest h-9 px-4 text-slate-300 focus:ring-pink-500">
+              <SelectValue placeholder="Todos os Status" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl bg-slate-900 border-white/10 text-white">
+              <SelectItem value="all" className="text-[10px] uppercase font-black tracking-widest">Todos os Status</SelectItem>
+              {COLUMNS.map(col => (
+                <SelectItem key={col.id} value={col.id} className="text-[10px] uppercase font-black tracking-widest">
+                  {col.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex flex-col md:flex-row md:items-end gap-6 lg:items-center">
@@ -386,7 +525,10 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
 
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <DialogTrigger render={
-              <Button className="bg-gradient-to-tr from-purple-500 to-pink-500 text-white hover:opacity-90 rounded-2xl w-12 h-12 flex items-center justify-center p-0 shadow-[0_0_15px_rgba(236,72,153,0.3)] border-none font-black transition-all hover:scale-105 active:scale-95">
+              <Button 
+                onClick={() => setNewArt(prev => ({ ...prev, status: 'todo' }))}
+                className="bg-gradient-to-tr from-purple-500 to-pink-500 text-white hover:opacity-90 rounded-2xl w-12 h-12 flex items-center justify-center p-0 shadow-[0_0_15px_rgba(236,72,153,0.3)] border-none font-black transition-all hover:scale-105 active:scale-95"
+              >
                 <Plus className="w-5 h-5" />
               </Button>
             } />
@@ -395,14 +537,29 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
               <DialogTitle className="text-2xl font-black text-white tracking-tight">Nova Solicitação de Arte</DialogTitle>
             </DialogHeader>
             <div className="grid gap-6 py-6">
-              <div className="space-y-2">
-                <Label className="text-[10px] uppercase font-black tracking-widest text-slate-400">Título da Arte</Label>
-                <Input 
-                  placeholder="Ex: Lineup Completo" 
-                  value={newArt.title} 
-                  onChange={e => setNewArt({...newArt, title: e.target.value})}
-                  className="rounded-2xl bg-white/5 border-white/10 text-white placeholder:text-slate-600 h-12 focus:ring-pink-500"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase font-black tracking-widest text-slate-400">Título da Arte</Label>
+                  <Input 
+                    placeholder="Ex: Lineup Completo" 
+                    value={newArt.title} 
+                    onChange={e => setNewArt({...newArt, title: e.target.value})}
+                    className="rounded-2xl bg-white/5 border-white/10 text-white placeholder:text-slate-600 h-12 focus:ring-pink-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] uppercase font-black tracking-widest text-slate-400">Status Inicial</Label>
+                  <Select onValueChange={(v: any) => setNewArt({...newArt, status: v})} value={newArt.status}>
+                    <SelectTrigger className="rounded-2xl bg-white/5 border-white/10 text-white h-12 capitalize">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-2xl bg-slate-900 border-white/10 text-white">
+                      {COLUMNS.map(col => (
+                        <SelectItem key={col.id} value={col.id} className="capitalize">{col.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -461,6 +618,7 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
         </div>
       </div>
 
+      {viewMode === 'kanban' && (
       <div className="relative group/scroll">
         <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-20 pointer-events-none">
           <Button
@@ -496,9 +654,20 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
                 <div className={cn("w-2 h-2 rounded-full shadow-[0_0_10px_currentColor]", column.color)} />
                 <h3 className={cn("font-black uppercase text-[10px] tracking-[0.2em]", column.textColor)}>{column.title}</h3>
               </div>
-              <Badge variant="outline" className="bg-white/5 border-white/10 text-slate-400 text-[9px] rounded-full px-2 py-0.5 h-4 flex items-center">
-                {filteredArts.filter(a => a.status === column.id).length}
-              </Badge>
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline" className="bg-white/5 border-white/10 text-slate-400 text-[9px] rounded-full px-2 py-0.5 h-4 flex items-center">
+                  {filteredArts.filter(a => a.status === column.id).length}
+                </Badge>
+                <button 
+                  onClick={() => {
+                    setNewArt(prev => ({ ...prev, status: column.id }));
+                    setIsAddOpen(true);
+                  }}
+                  className="w-5 h-5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all active:scale-90"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 space-y-3">
@@ -618,6 +787,253 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
         ))}
         </div>
       </DragDropContext>
+      </div>
+      )}
+
+      {viewMode === 'list' && (
+        <div className="space-y-4">
+          <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_1fr_80px] gap-4 px-8 text-[10px] font-black uppercase tracking-widest text-slate-500 pb-2 border-b border-white/5">
+            <span>Título / Descrição</span>
+            <span className="text-center">Status</span>
+            <span className="text-center">Categoria</span>
+            <span className="text-center">Prioridade</span>
+            <span className="text-center">Prazo</span>
+            <span className="text-right">Ações</span>
+          </div>
+          <div className="space-y-2">
+            {filteredArts.length > 0 ? (
+              filteredArts.map(art => (
+                <motion.div
+                  key={art.id}
+                  layout
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="group relative bg-white/[0.02] hover:bg-white/5 border border-white/5 rounded-2xl p-4 md:p-6 transition-all hover:scale-[1.01] hover:shadow-2xl overflow-hidden cursor-pointer"
+                  onClick={() => setSelectedArt(art)}
+                >
+                  <div className={`absolute top-0 left-0 w-1.5 h-full ${getPriorityColor(art.priority)}`} />
+                  <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_80px] gap-4 items-center">
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-black text-white group-hover:text-pink-400 transition-all uppercase italic">{art.title}</h4>
+                      <p className="text-[11px] text-slate-500 line-clamp-1 italic">{art.description || 'Sem descrição'}</p>
+                    </div>
+                    <div className="flex justify-center">
+                      <Badge className={cn("text-[9px] font-black uppercase tracking-widest rounded-full px-3 py-1", getStatusColorClasses(art.status))}>
+                        {translateStatus(art.status)}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-center gap-2 items-center text-[10px] font-bold text-slate-400 uppercase tracking-tighter bg-white/5 px-3 py-1 rounded-full border border-white/5">
+                      {art.category === 'dj' && '🎧'}
+                      {art.category === 'party' && '🎪'}
+                      {art.category === 'branding' && '⭐️'}
+                      <span>{translateCategory(art.category)}</span>
+                    </div>
+                    <div className="flex justify-center">
+                      <div className={cn("text-[9px] font-black uppercase tracking-widest h-6 px-3 rounded-full flex items-center", getPriorityColor(art.priority) + "/10 " + getPriorityColor(art.priority).replace('bg-', 'text-'))}>
+                        {translatePriority(art.priority)}
+                      </div>
+                    </div>
+                    <div className="flex justify-center items-center gap-2 text-[10px] font-black text-slate-300 bg-black/20 px-3 py-1 rounded-full border border-white/5">
+                      <Calendar className="w-3 h-3 text-blue-400" />
+                      {art.deadline ? format(new Date(art.deadline), "dd/MM/yyyy") : 'S/ Prazo'}
+                    </div>
+                    <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl bg-white/5 hover:bg-pink-500 hover:text-white">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center p-20 bg-white/[0.01] rounded-3xl border border-dashed border-white/5">
+                <Palette className="w-12 h-12 text-slate-800 mb-4" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Nenhuma arte encontrada com os filtros selecionados</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {viewMode === 'calendar' && (
+        <div className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 space-y-6 shadow-2xl backdrop-blur-xl">
+          <div className="flex items-center justify-between px-2">
+            <div className="flex flex-col">
+              <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter">
+                {format(currentMonth, 'MMMM yyyy', { locale: ptBR })}
+              </h3>
+              <p className="text-slate-500 text-[10px] uppercase font-bold tracking-[0.2em] mt-1">
+                ENTREGAS E PRAZOS
+              </p>
+            </div>
+            <div className="flex items-center gap-2 bg-white/5 p-1 rounded-2xl border border-white/5">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                className="w-10 h-10 rounded-xl hover:bg-white/10 text-white"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setCurrentMonth(new Date())}
+                className="text-[9px] font-black uppercase tracking-widest px-4 hover:bg-white/10 text-slate-400 hover:text-white"
+              >
+                Hoje
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                className="w-10 h-10 rounded-xl hover:bg-white/10 text-white"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-7 gap-2">
+            {weekDays.map(day => (
+              <div key={day} className="text-center py-4 text-[10px] font-black uppercase tracking-widest text-slate-600">
+                {day}
+              </div>
+            ))}
+            {calendarDays.map((day, idx) => {
+              const dayTasks = filteredArts.filter(art => 
+                art.deadline && isSameDay(new Date(art.deadline), day)
+              );
+              const isCurrentMonth = isSameMonth(day, currentMonth);
+              const isTodayDay = isToday(day);
+
+              return (
+                <div 
+                  key={idx} 
+                  className={cn(
+                    "min-h-[140px] p-3 rounded-2xl border transition-all flex flex-col gap-2",
+                    isCurrentMonth ? "bg-white/[0.02] border-white/5" : "bg-transparent border-transparent opacity-20 pointer-events-none",
+                    isTodayDay && "ring-2 ring-pink-500/50 bg-pink-500/5 border-pink-500/20"
+                  )}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <span className={cn(
+                      "text-xs font-black tracking-tight",
+                      isTodayDay ? "text-pink-500" : "text-slate-400"
+                    )}>
+                      {format(day, 'd')}
+                    </span>
+                    {dayTasks.length > 0 && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-pink-500 shadow-[0_0_8px_#ec4899]" />
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-col gap-1.5 overflow-hidden">
+                    {dayTasks.map(task => (
+                      <motion.button
+                        key={task.id}
+                        layoutId={task.id}
+                        onClick={() => setSelectedArt(task)}
+                        className={cn(
+                          "w-full text-left p-2 rounded-lg text-[9px] font-black uppercase tracking-tight border border-white/5 transition-all hover:scale-[1.02] active:scale-95 line-clamp-1",
+                          task.priority === 'high' ? "bg-red-500/20 text-red-400 border-red-500/20" :
+                          task.priority === 'medium' ? "bg-amber-500/20 text-amber-400 border-amber-500/20" :
+                          "bg-emerald-500/20 text-emerald-400 border-emerald-500/20"
+                        )}
+                      >
+                        {task.title}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {viewMode === 'timeline' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="group relative bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/5 transition-all hover:scale-[1.02] cursor-default shadow-2xl overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 w-full h-1 bg-red-500 shadow-[0_0_20px_#ef4444]" />
+            <div className="space-y-4">
+              <div className="flex flex-col">
+                <span className="text-sm font-black text-red-500 uppercase italic tracking-tighter">Urgente</span>
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">esta semana</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-6xl font-black text-white italic tracking-tighter">{summaryStats.urgent}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">artes</span>
+              </div>
+              <p className="text-xs text-slate-500 italic">com prazo próximo e alta prioridade no cronograma atual</p>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="group relative bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/5 transition-all hover:scale-[1.02] cursor-default shadow-2xl overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 w-full h-1 bg-amber-500 shadow-[0_0_20px_#f59e0b]" />
+            <div className="space-y-4">
+              <div className="flex flex-col">
+                <span className="text-sm font-black text-amber-500 uppercase italic tracking-tighter">Média</span>
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">semana que vem</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-6xl font-black text-white italic tracking-tighter">{summaryStats.medium}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">artes</span>
+              </div>
+              <p className="text-xs text-slate-500 italic">programadas para entrega no próximo ciclo de produção</p>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="group relative bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/5 transition-all hover:scale-[1.02] cursor-default shadow-2xl overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 w-full h-1 bg-blue-500 shadow-[0_0_20px_#3b82f6]" />
+            <div className="space-y-4">
+              <div className="flex flex-col">
+                <span className="text-sm font-black text-blue-500 uppercase italic tracking-tighter">Baixa</span>
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">próximas semanas</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-6xl font-black text-white italic tracking-tighter">{summaryStats.low}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">artes</span>
+              </div>
+              <p className="text-xs text-slate-500 italic">no pipeline de criação e aguardando definição de prazo</p>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="group relative bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/5 transition-all hover:scale-[1.02] cursor-default shadow-2xl overflow-hidden"
+          >
+            <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_20px_#10b981]" />
+            <div className="space-y-4">
+              <div className="flex flex-col">
+                <span className="text-sm font-black text-emerald-500 uppercase italic tracking-tighter">Concluídas</span>
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">entregas realizadas</span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-6xl font-black text-white italic tracking-tighter">{summaryStats.completed}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">artes</span>
+              </div>
+              <p className="text-xs text-slate-500 italic">finalizadas e entregues com sucesso para o cliente</p>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       <Dialog open={!!selectedArt} onOpenChange={(open) => !open && setSelectedArt(null)}>
         <DialogContent className="rounded-[2.5rem] sm:max-w-[600px] glass border-white/10 text-slate-100 p-0 overflow-hidden">
@@ -728,6 +1144,5 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
         </DialogContent>
       </Dialog>
     </div>
-  </div>
   );
 }
