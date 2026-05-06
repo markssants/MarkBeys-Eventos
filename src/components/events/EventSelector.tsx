@@ -174,7 +174,7 @@ export function EventSelector({ profile, onEventCreated, onEventUpdated, isMinim
               <Label htmlFor="name" className="text-[10px] uppercase font-black tracking-widest text-slate-500">Nome da Festa</Label>
               <Input 
                 id="name" 
-                placeholder="Ex: Baile do Beys 2026" 
+                placeholder="Ex: Marks Eventos 2026" 
                 className="rounded-2xl bg-white/8 border-white/10 text-white placeholder:text-slate-700 h-11 focus:ring-pink-500 transition-all font-semibold"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -273,7 +273,7 @@ export function EventSelector({ profile, onEventCreated, onEventUpdated, isMinim
               <Label htmlFor="location" className="text-[10px] uppercase font-black tracking-widest text-slate-500">Local (Clube/Espaço)</Label>
               <Input 
                 id="location" 
-                placeholder="Ex: Arena Beys Club" 
+                placeholder="Ex: Arena Marks Club" 
                 className="rounded-2xl bg-white/8 border-white/10 text-white placeholder:text-slate-700 h-11 focus:ring-pink-500"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
@@ -282,7 +282,7 @@ export function EventSelector({ profile, onEventCreated, onEventUpdated, isMinim
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="drive" className="text-[10px] uppercase font-black tracking-widest text-slate-500">Link do Drive (Documentos)</Label>
+            <Label htmlFor="drive" className="text-[10px] uppercase font-black tracking-widest text-slate-500">Link do Drive (Arquivos)</Label>
             <Input 
               id="drive" 
               placeholder="https://drive.google.com/..." 
@@ -316,7 +316,7 @@ export function EventSelector({ profile, onEventCreated, onEventUpdated, isMinim
             </div>
           ) : (
             <div className="space-y-2">
-              <Label htmlFor="demail" className="text-[10px] uppercase font-black tracking-widest text-slate-500">Email do Designer (Beys)</Label>
+              <Label htmlFor="demail" className="text-[10px] uppercase font-black tracking-widest text-slate-500">Email do Designer (Marks)</Label>
               <Input 
                 id="demail" 
                 placeholder="beysarts@gmail.com" 

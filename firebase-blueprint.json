@@ -73,7 +73,8 @@
       "type": "object",
       "properties": {
         "eventId": { "type": "string" },
-        "type": { "type": "string", "enum": ["contract", "receipt"] },
+        "type": { "type": "string", "enum": ["contract", "receipt", "proposal"] },
+        "status": { "type": "string", "enum": ["pending", "signed"] },
         "url": { "type": "string" },
         "name": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
@@ -86,13 +87,14 @@
       "type": "object",
       "properties": {
         "eventId": { "type": "string" },
+        "description": { "type": "string" },
         "amount": { "type": "number" },
-        "status": { "type": "string", "enum": ["paid", "pending"] },
+        "status": { "type": "string", "enum": ["paid", "pending", "overdue"] },
         "dueDate": { "type": "string", "format": "date-time" },
         "paidAt": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["eventId", "amount", "status", "dueDate"]
+      "required": ["eventId", "description", "amount", "status", "dueDate"]
     }
   },
   "firestore": {

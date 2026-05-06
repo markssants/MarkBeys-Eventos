@@ -50,27 +50,42 @@ export interface DjAsset {
   musicName?: string;
   musicUrl?: string;
   musicDuration?: string;
+  artDeadline?: string;
+  hasMandatoryLogo?: boolean;
+  agencyInfo?: string;
+  labelInfo?: string;
+  flyerPhoto?: string;
+  animationVideo?: string;
+  priority?: 'low' | 'medium' | 'urgent';
+  presskitStatus?: 'pending' | 'completed';
   createdAt: any;
 }
 
 export interface ProjectDocument {
   id: string;
   eventId: string;
-  type: 'contract' | 'receipt';
+  type: 'contract' | 'receipt' | 'proposal';
+  status: 'pending' | 'signed';
   url: string;
   name: string;
+  thumbnailUrl?: string;
   createdAt: any;
+  updatedAt?: any;
 }
 
 export interface PaymentItem {
   id: string;
   eventId: string;
+  description: string;
   amount: number;
-  status: 'paid' | 'pending';
+  status: 'paid' | 'pending' | 'overdue';
   dueDate: any;
   paidAt?: any;
   createdAt: any;
+  updatedAt?: any;
 }
+
+export type ViewType = 'overview' | 'arts' | 'dj' | 'docs' | 'payments' | 'files' | 'profile' | 'about';
 
 export enum OperationType {
   CREATE = 'create',

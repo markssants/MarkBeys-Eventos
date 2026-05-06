@@ -19,9 +19,9 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
-  console.error('Firestore Error:', JSON.stringify(errInfo, null, 2));
-  // In a real app we might throw or show a toast
-  return errInfo;
+  const errorString = JSON.stringify(errInfo, null, 2);
+  console.error('Firestore Error:', errorString);
+  throw new Error(errorString);
 }
 
 async function testConnection() {

@@ -1,4 +1,4 @@
-# Security Specification for Beys Arts
+# Security Specification for Marks Eventos
 
 ## Data Invariants
 1. A user can only see their own profile.

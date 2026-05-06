@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "motion/react";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday, isThisWeek, addWeeks, isSameWeek, isAfter } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday, isThisWeek, addWeeks, isSameWeek, isAfter, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -36,7 +36,19 @@ const COLUMNS: { id: ColumnId; title: string; color: string; textColor: string }
 ];
 
 export function KanbanBoard({ event, profile }: KanbanBoardProps) {
-  const [viewMode, setViewMode] = useState<'kanban' | 'calendar' | 'timeline' | 'list'>('kanban');
+  const [viewMode, setViewMode] = useState<'kanban' | 'calendar' | 'timeline' | 'list'>(() => {
+    const saved = localStorage.getItem('artsViewMode');
+    if (saved && (saved === 'kanban' || saved === 'calendar')) {
+      return saved as any;
+    }
+    return 'kanban';
+  });
+
+  useEffect(() => {
+    if (viewMode === 'kanban' || viewMode === 'calendar') {
+      localStorage.setItem('artsViewMode', viewMode);
+    }
+  }, [viewMode]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [arts, setArts] = useState<ArtTask[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -59,6 +71,8 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
 
   const [selectedArt, setSelectedArt] = useState<ArtTask | null>(null);
   const [editArt, setEditArt] = useState<Partial<ArtTask> | null>(null);
+
+  const [timelineDetail, setTimelineDetail] = useState<'urgent' | 'medium' | 'low' | 'completed' | null>(null);
 
   useEffect(() => {
     if (selectedArt) {
@@ -131,12 +145,12 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
     const path = `events/${event.id}/arts/${selectedArt.id}`;
     try {
       await updateDoc(doc(db, 'events', event.id, 'arts', selectedArt.id), {
-        title: editArt.title,
-        description: editArt.description,
-        priority: editArt.priority,
-        category: editArt.category,
-        deadline: editArt.deadline,
-        status: editArt.status
+        title: editArt.title || selectedArt.title,
+        description: editArt.description || '',
+        priority: editArt.priority || 'medium',
+        category: editArt.category || 'dj',
+        deadline: editArt.deadline || null,
+        status: editArt.status || 'todo'
       });
       toast.success("Alterações salvas!");
       setSelectedArt(null);
@@ -262,31 +276,62 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
 
   const summaryStats = useMemo(() => {
     const now = new Date();
-    const nextWeekStart = startOfWeek(addWeeks(now, 1), { weekStartsOn: 0 });
     
     return {
       urgent: filteredArts.filter(a => 
         a.priority === 'high' && 
         !['finished', 'delivered'].includes(a.status) && 
-        a.deadline && isThisWeek(new Date(a.deadline), { weekStartsOn: 0 })
+        a.deadline && isThisWeek(parseISO(a.deadline), { weekStartsOn: 0 })
       ).length,
       medium: filteredArts.filter(a => 
         a.priority === 'medium' && 
         !['finished', 'delivered'].includes(a.status) && 
-        a.deadline && isSameWeek(new Date(a.deadline), addWeeks(now, 1), { weekStartsOn: 0 })
+        a.deadline && isSameWeek(parseISO(a.deadline), addWeeks(now, 1), { weekStartsOn: 0 })
       ).length,
       low: filteredArts.filter(a => 
         !['finished', 'delivered'].includes(a.status) && 
-        (a.priority === 'low' || !a.deadline || isAfter(new Date(a.deadline), endOfWeek(addWeeks(now, 1), { weekStartsOn: 0 })))
+        (a.priority === 'low' || !a.deadline || isAfter(parseISO(a.deadline), endOfWeek(addWeeks(now, 1), { weekStartsOn: 0 })))
       ).filter(a => {
         // Exclude those already counted in urgent/medium if they overlap
-        const isUrgent = a.priority === 'high' && a.deadline && isThisWeek(new Date(a.deadline), { weekStartsOn: 0 });
-        const isMedium = a.priority === 'medium' && a.deadline && isSameWeek(new Date(a.deadline), addWeeks(now, 1), { weekStartsOn: 0 });
+        const isUrgent = a.priority === 'high' && a.deadline && isThisWeek(parseISO(a.deadline), { weekStartsOn: 0 });
+        const isMedium = a.priority === 'medium' && a.deadline && isSameWeek(parseISO(a.deadline), addWeeks(now, 1), { weekStartsOn: 0 });
         return !isUrgent && !isMedium;
       }).length,
       completed: filteredArts.filter(a => ['finished', 'delivered'].includes(a.status)).length
     };
   }, [filteredArts]);
+
+  const timelineDetailArts = useMemo(() => {
+    if (!timelineDetail) return [];
+    const now = new Date();
+    switch (timelineDetail) {
+      case 'urgent':
+        return filteredArts.filter(a => 
+          a.priority === 'high' && 
+          !['finished', 'delivered'].includes(a.status) && 
+          a.deadline && isThisWeek(parseISO(a.deadline), { weekStartsOn: 0 })
+        );
+      case 'medium':
+        return filteredArts.filter(a => 
+          a.priority === 'medium' && 
+          !['finished', 'delivered'].includes(a.status) && 
+          a.deadline && isSameWeek(parseISO(a.deadline), addWeeks(now, 1), { weekStartsOn: 0 })
+        );
+      case 'low':
+        return filteredArts.filter(a => 
+          !['finished', 'delivered'].includes(a.status) && 
+          (a.priority === 'low' || !a.deadline || isAfter(parseISO(a.deadline), endOfWeek(addWeeks(now, 1), { weekStartsOn: 0 })))
+        ).filter(a => {
+          const isUrgent = a.priority === 'high' && a.deadline && isThisWeek(parseISO(a.deadline), { weekStartsOn: 0 });
+          const isMedium = a.priority === 'medium' && a.deadline && isSameWeek(parseISO(a.deadline), addWeeks(now, 1), { weekStartsOn: 0 });
+          return !isUrgent && !isMedium;
+        });
+      case 'completed':
+        return filteredArts.filter(a => ['finished', 'delivered'].includes(a.status));
+      default:
+        return [];
+    }
+  }, [timelineDetail, filteredArts]);
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -307,6 +352,22 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
       destination.droppableId === source.droppableId &&
       destination.index === source.index
     ) {
+      return;
+    }
+
+    // Handle Calendar Date Drop
+    if (destination.droppableId.startsWith('date:')) {
+      const newDate = destination.droppableId.replace('date:', '');
+      const path = `events/${event.id}/arts/${draggableId}`;
+      try {
+        await updateDoc(doc(db, 'events', event.id, 'arts', draggableId), {
+          deadline: newDate
+        });
+        toast.success(`Prazo alterado para ${format(parseISO(newDate), "dd/MM")}`);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.UPDATE, path);
+        toast.error("Erro ao atualizar data");
+      }
       return;
     }
 
@@ -363,8 +424,9 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
 
   return (
     <div className="space-y-8 p-6">
-      {/* View Switcher Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-black/40 p-2 rounded-[2rem] border border-white/5">
+      <DragDropContext onDragEnd={onDragEnd}>
+        {/* View Switcher Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-black/40 p-2 rounded-[2rem] border border-white/5">
         <div className="flex items-center gap-1 p-1 bg-white/5 rounded-2xl border border-white/5">
           <button 
             onClick={() => setViewMode('kanban')}
@@ -374,7 +436,7 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
             )}
           >
             <Layout className="w-4 h-4" />
-            <span>Kanban</span>
+            <span>Quadro</span>
           </button>
           <button 
             onClick={() => setViewMode('calendar')}
@@ -455,34 +517,36 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2 mb-1">
-            <Layout className="w-3.5 h-3.5 text-blue-500" />
-            <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Filtrar por Status</h2>
+        {(viewMode === 'calendar' || viewMode === 'list') && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Layout className="w-3.5 h-3.5 text-blue-500" />
+              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Filtrar por Status</h2>
+            </div>
+            <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+              <SelectTrigger className="w-[180px] rounded-xl bg-white/5 border-white/5 text-[10px] font-black uppercase tracking-widest h-9 px-4 text-slate-300 focus:ring-pink-500">
+                <SelectValue placeholder="Todos os Status" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl bg-slate-900 border-white/10 text-white">
+                <SelectItem value="all" className="text-[10px] uppercase font-black tracking-widest">Todos os Status</SelectItem>
+                {COLUMNS.map(col => (
+                  <SelectItem key={col.id} value={col.id} className="text-[10px] uppercase font-black tracking-widest">
+                    {col.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-            <SelectTrigger className="w-[180px] rounded-xl bg-white/5 border-white/5 text-[10px] font-black uppercase tracking-widest h-9 px-4 text-slate-300 focus:ring-pink-500">
-              <SelectValue placeholder="Todos os Status" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl bg-slate-900 border-white/10 text-white">
-              <SelectItem value="all" className="text-[10px] uppercase font-black tracking-widest">Todos os Status</SelectItem>
-              {COLUMNS.map(col => (
-                <SelectItem key={col.id} value={col.id} className="text-[10px] uppercase font-black tracking-widest">
-                  {col.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        )}
 
         <div className="flex flex-col md:flex-row md:items-end gap-6 lg:items-center">
           <div className="flex flex-col gap-2 md:items-end md:ml-auto">
-            <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Prioridade</span>
-            <div className="flex items-center bg-black/40 p-1 rounded-xl border border-white/5">
+            <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">Prioridade</span>
+            <div className="flex items-center bg-black/40 p-1.5 rounded-xl border border-white/5">
               <button 
                 onClick={() => setPriorityFilter('all')}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all",
+                  "px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all",
                   priorityFilter === 'all' ? "bg-white/10 text-white" : "text-slate-600 hover:text-slate-400"
                 )}
               >
@@ -491,31 +555,31 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
               <button 
                 onClick={() => setPriorityFilter('high')}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-[9px] font-black uppercase tracking-tighter",
+                  "flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all text-[10px] font-black uppercase tracking-tighter",
                   priorityFilter === 'high' ? "bg-red-500/20 text-red-500 shadow-[0_0_10px_rgba(239,68,68,0.1)]" : "text-slate-700 hover:text-red-400/50"
                 )}
               >
-                <span className="text-[10px]">🔴</span>
+                <span className="text-[12px]">🔴</span>
                 <span>Urgente</span>
               </button>
               <button 
                 onClick={() => setPriorityFilter('medium')}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-[9px] font-black uppercase tracking-tighter",
+                  "flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all text-[10px] font-black uppercase tracking-tighter",
                   priorityFilter === 'medium' ? "bg-amber-500/20 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.1)]" : "text-slate-700 hover:text-amber-400/50"
                 )}
               >
-                <span className="text-[10px]">🟡</span>
+                <span className="text-[12px]">🟡</span>
                 <span>Média</span>
               </button>
               <button 
                 onClick={() => setPriorityFilter('low')}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-[9px] font-black uppercase tracking-tighter",
+                  "flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all text-[10px] font-black uppercase tracking-tighter",
                   priorityFilter === 'low' ? "bg-emerald-500/20 text-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.1)]" : "text-slate-700 hover:text-emerald-400/50"
                 )}
               >
-                <span className="text-[10px]">🟢</span>
+                <span className="text-[12px]">🟢</span>
                 <span>Baixa</span>
               </button>
             </div>
@@ -564,7 +628,7 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-[10px] uppercase font-black tracking-widest text-slate-400">Prioridade</Label>
-                  <Select onValueChange={(v: any) => setNewArt({...newArt, priority: v})} defaultValue="medium">
+                  <Select onValueChange={(v: any) => setNewArt({...newArt, priority: v})} value={newArt.priority}>
                     <SelectTrigger className="rounded-2xl bg-white/5 border-white/10 text-white h-12">
                       <SelectValue />
                     </SelectTrigger>
@@ -577,7 +641,7 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-[10px] uppercase font-black tracking-widest text-slate-400">Categoria</Label>
-                  <Select onValueChange={(v: any) => setNewArt({...newArt, category: v})} defaultValue="dj">
+                  <Select onValueChange={(v: any) => setNewArt({...newArt, category: v})} value={newArt.category}>
                     <SelectTrigger className="rounded-2xl bg-white/5 border-white/10 text-white h-12">
                       <SelectValue />
                     </SelectTrigger>
@@ -610,7 +674,7 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
             </div>
             <DialogFooter>
               <Button onClick={handleAddArt} disabled={loading} className="w-full bg-pink-500 hover:bg-pink-600 rounded-2xl h-14 font-black shadow-[0_0_20px_rgba(236,72,153,0.3)]">
-                {loading ? "Cadastrando..." : "Adicionar ao Kanban"}
+                {loading ? "Cadastrando..." : "Adicionar ao Quadro"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -642,7 +706,6 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
           </Button>
         </div>
 
-      <DragDropContext onDragEnd={onDragEnd}>
         <div 
           ref={scrollContainerRef}
           className="flex overflow-x-auto pb-8 gap-6 min-h-[600px] custom-scrollbar snap-x px-2"
@@ -740,16 +803,16 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
 
                                       <div className="flex items-center justify-between pt-2 border-t border-white/5 px-1.5">
                                         <div className="flex items-center space-x-2 text-slate-500">
-                                          {art.priority === 'high' && <AlertTriangle className="w-3 h-3 text-red-500" />}
-                                          {art.priority === 'medium' && <AlertTriangle className="w-3 h-3 text-yellow-500" />}
-                                          {art.priority === 'low' && <Clock className="w-3 h-3 text-emerald-400" />}
-                                          <span className="text-[8px] font-black uppercase tracking-[0.1em]">{translatePriority(art.priority)}</span>
+                                          {art.priority === 'high' && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+                                          {art.priority === 'medium' && <AlertTriangle className="w-3.5 h-3.5 text-yellow-500" />}
+                                          {art.priority === 'low' && <Clock className="w-3.5 h-3.5 text-emerald-400" />}
+                                          <span className="text-[10px] font-black uppercase tracking-[0.1em]">{translatePriority(art.priority)}</span>
                                         </div>
                                         {art.deadline ? (
                                           <div className="flex items-center space-x-1 text-slate-400">
                                             <Calendar className="w-2.5 h-2.5 text-blue-400" />
                                             <span className="text-[8px] font-black tracking-tighter">
-                                              {format(new Date(art.deadline), "dd/MM", { locale: ptBR })}
+                                              {format(parseISO(art.deadline), "dd/MM", { locale: ptBR })}
                                             </span>
                                           </div>
                                         ) : (
@@ -786,7 +849,6 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
           </div>
         ))}
         </div>
-      </DragDropContext>
       </div>
       )}
 
@@ -835,7 +897,7 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
                     </div>
                     <div className="flex justify-center items-center gap-2 text-[10px] font-black text-slate-300 bg-black/20 px-3 py-1 rounded-full border border-white/5">
                       <Calendar className="w-3 h-3 text-blue-400" />
-                      {art.deadline ? format(new Date(art.deadline), "dd/MM/yyyy") : 'S/ Prazo'}
+                      {art.deadline ? format(parseISO(art.deadline), "dd/MM/yyyy") : 'S/ Prazo'}
                     </div>
                     <div className="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button variant="ghost" size="icon" className="w-10 h-10 rounded-xl bg-white/5 hover:bg-pink-500 hover:text-white">
@@ -901,51 +963,80 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
               </div>
             ))}
             {calendarDays.map((day, idx) => {
+              const dateString = format(day, "yyyy-MM-dd");
               const dayTasks = filteredArts.filter(art => 
-                art.deadline && isSameDay(new Date(art.deadline), day)
+                art.deadline === dateString
               );
               const isCurrentMonth = isSameMonth(day, currentMonth);
               const isTodayDay = isToday(day);
 
               return (
-                <div 
-                  key={idx} 
-                  className={cn(
-                    "min-h-[140px] p-3 rounded-2xl border transition-all flex flex-col gap-2",
-                    isCurrentMonth ? "bg-white/[0.02] border-white/5" : "bg-transparent border-transparent opacity-20 pointer-events-none",
-                    isTodayDay && "ring-2 ring-pink-500/50 bg-pink-500/5 border-pink-500/20"
-                  )}
-                >
-                  <div className="flex justify-between items-start mb-1">
-                    <span className={cn(
-                      "text-xs font-black tracking-tight",
-                      isTodayDay ? "text-pink-500" : "text-slate-400"
-                    )}>
-                      {format(day, 'd')}
-                    </span>
-                    {dayTasks.length > 0 && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-pink-500 shadow-[0_0_8px_#ec4899]" />
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-col gap-1.5 overflow-hidden">
-                    {dayTasks.map(task => (
-                      <motion.button
-                        key={task.id}
-                        layoutId={task.id}
-                        onClick={() => setSelectedArt(task)}
-                        className={cn(
-                          "w-full text-left p-2 rounded-lg text-[9px] font-black uppercase tracking-tight border border-white/5 transition-all hover:scale-[1.02] active:scale-95 line-clamp-1",
-                          task.priority === 'high' ? "bg-red-500/20 text-red-400 border-red-500/20" :
-                          task.priority === 'medium' ? "bg-amber-500/20 text-amber-400 border-amber-500/20" :
-                          "bg-emerald-500/20 text-emerald-400 border-emerald-500/20"
+                <Droppable droppableId={`date:${dateString}`} key={idx} isDropDisabled={!isCurrentMonth}>
+                  {(provided, snapshot) => (
+                    <div 
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={cn(
+                        "min-h-[140px] p-3 rounded-2xl border transition-all flex flex-col gap-2 relative group",
+                        isCurrentMonth ? "bg-white/[0.02] border-white/5" : "bg-transparent border-transparent opacity-20 pointer-events-none",
+                        isTodayDay && "ring-2 ring-pink-500/50 bg-pink-500/5 border-pink-500/20",
+                        snapshot.isDraggingOver && "bg-pink-500/10 border-pink-500/40"
+                      )}
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className={cn(
+                          "text-xs font-black tracking-tight",
+                          isTodayDay ? "text-pink-500" : "text-slate-400"
+                        )}>
+                          {format(day, 'd')}
+                        </span>
+                        {isCurrentMonth && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setNewArt(prev => ({ ...prev, status: 'todo', deadline: dateString }));
+                              setIsAddOpen(true);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1 rounded-md bg-pink-500/10 text-pink-500 hover:bg-pink-500 hover:text-white transition-all shadow-[0_0_10px_rgba(236,72,153,0.2)]"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
                         )}
-                      >
-                        {task.title}
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
+                      </div>
+                      
+                      <div className="flex flex-col gap-1.5 overflow-hidden flex-1">
+                        {dayTasks.map((task, taskIdx) => (
+                          <Draggable key={task.id} draggableId={task.id} index={taskIdx}>
+                            {(provided, snapshot) => {
+                              const child = (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  onClick={() => !snapshot.isDragging && setSelectedArt(task)}
+                                  className={cn(
+                                    "w-full text-left p-2 rounded-lg text-[9px] font-black uppercase tracking-tight border border-white/5 transition-all line-clamp-1",
+                                    task.priority === 'high' ? "bg-red-500/20 text-red-400 border-red-500/20" :
+                                    task.priority === 'medium' ? "bg-amber-500/20 text-amber-400 border-amber-500/20" :
+                                    "bg-emerald-500/20 text-emerald-400 border-emerald-500/20",
+                                    snapshot.isDragging && "z-50 shadow-2xl scale-105 rotate-2 brightness-125"
+                                  )}
+                                >
+                                  {task.title}
+                                </div>
+                              );
+                              if (snapshot.isDragging) {
+                                return createPortal(child, document.body);
+                              }
+                              return child;
+                            }}
+                          </Draggable>
+                        ))}
+                      </div>
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
               );
             })}
           </div>
@@ -957,7 +1048,8 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="group relative bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/5 transition-all hover:scale-[1.02] cursor-default shadow-2xl overflow-hidden"
+            onClick={() => setTimelineDetail('urgent')}
+            className="group relative bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/5 transition-all hover:scale-[1.02] cursor-pointer shadow-2xl overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-red-500 shadow-[0_0_20px_#ef4444]" />
             <div className="space-y-4">
@@ -977,7 +1069,8 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="group relative bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/5 transition-all hover:scale-[1.02] cursor-default shadow-2xl overflow-hidden"
+            onClick={() => setTimelineDetail('medium')}
+            className="group relative bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/5 transition-all hover:scale-[1.02] cursor-pointer shadow-2xl overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-amber-500 shadow-[0_0_20px_#f59e0b]" />
             <div className="space-y-4">
@@ -997,7 +1090,8 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="group relative bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/5 transition-all hover:scale-[1.02] cursor-default shadow-2xl overflow-hidden"
+            onClick={() => setTimelineDetail('low')}
+            className="group relative bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/5 transition-all hover:scale-[1.02] cursor-pointer shadow-2xl overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-blue-500 shadow-[0_0_20px_#3b82f6]" />
             <div className="space-y-4">
@@ -1017,7 +1111,8 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="group relative bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/5 transition-all hover:scale-[1.02] cursor-default shadow-2xl overflow-hidden"
+            onClick={() => setTimelineDetail('completed')}
+            className="group relative bg-white/[0.02] border border-white/5 rounded-[2.5rem] p-8 hover:bg-white/5 transition-all hover:scale-[1.02] cursor-pointer shadow-2xl overflow-hidden"
           >
             <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500 shadow-[0_0_20px_#10b981]" />
             <div className="space-y-4">
@@ -1143,6 +1238,70 @@ export function KanbanBoard({ event, profile }: KanbanBoardProps) {
           )}
         </DialogContent>
       </Dialog>
+      <Dialog open={!!timelineDetail} onOpenChange={(open) => !open && setTimelineDetail(null)}>
+        <DialogContent className="rounded-[2.5rem] sm:max-w-[700px] glass border-white/10 text-slate-100 p-0 overflow-hidden">
+          <div className="flex flex-col">
+            <div className={cn(
+              "h-2 w-full shadow-[0_4px_10px_rgba(0,0,0,0.3)]",
+              timelineDetail === 'urgent' ? "bg-red-500" :
+              timelineDetail === 'medium' ? "bg-amber-500" :
+              timelineDetail === 'low' ? "bg-blue-500" :
+              "bg-emerald-500"
+            )} />
+            <div className="p-8 space-y-6">
+              <DialogHeader>
+                <DialogTitle className="text-2xl font-black text-white tracking-tight uppercase italic">
+                  {timelineDetail === 'urgent' && "Solicitações Urgentes"}
+                  {timelineDetail === 'medium' && "Solicitações Médias"}
+                  {timelineDetail === 'low' && "Solicitações Baixas"}
+                  {timelineDetail === 'completed' && "Solicitações Concluídas"}
+                </DialogTitle>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  {timelineDetailArts.length} artes encontradas nesta categoria
+                </p>
+              </DialogHeader>
+
+              <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-3">
+                {timelineDetailArts.length > 0 ? (
+                  timelineDetailArts.map(art => (
+                    <div 
+                      key={art.id}
+                      onClick={() => {
+                        setSelectedArt(art);
+                        setTimelineDetail(null);
+                      }}
+                      className="group p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all cursor-pointer flex items-center justify-between"
+                    >
+                      <div className="flex flex-col gap-1">
+                        <h4 className="text-sm font-black text-white uppercase italic group-hover:text-pink-400 transition-all">{art.title}</h4>
+                        <div className="flex items-center gap-3">
+                           <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-full">
+                            {translateStatus(art.status)}
+                          </span>
+                          {art.deadline && (
+                            <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                              <Calendar className="w-2.5 h-2.5 text-blue-400" />
+                              {format(parseISO(art.deadline), "dd/MM/yyyy")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <Badge className={cn("text-[8px] font-black uppercase tracking-widest", getPriorityColor(art.priority))}>
+                        {translatePriority(art.priority)}
+                      </Badge>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-12 text-slate-600 bg-white/[0.01] rounded-3xl border border-dashed border-white/5">
+                    <p className="text-[10px] font-black uppercase tracking-widest">Nenhuma arte encontrada</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </DragDropContext>
     </div>
   );
 }

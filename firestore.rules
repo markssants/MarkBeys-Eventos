@@ -122,8 +122,9 @@ service cloud.firestore {
     match /events/{eventId}/documents/{docId} {
       allow read: if isEventMember(eventId);
       allow create, update: if isEventMember(eventId) &&
-        incoming().name is string && incoming().name.size() <= 200 &&
-        incoming().type in ['contract', 'receipt'];
+        (!('name' in incoming()) || (incoming().name is string && incoming().name.size() <= 200)) &&
+        (!('type' in incoming()) || (incoming().type in ['contract', 'receipt', 'proposal'])) &&
+        (!('status' in incoming()) || (incoming().status in ['pending', 'signed']));
       allow delete: if isEventMember(eventId);
     }
 
@@ -131,8 +132,9 @@ service cloud.firestore {
     match /events/{eventId}/payments/{paymentId} {
       allow read: if isEventMember(eventId);
       allow create, update: if isEventMember(eventId) &&
-        incoming().amount is number &&
-        incoming().status in ['paid', 'pending'];
+        (!('description' in incoming()) || (incoming().description is string && incoming().description.size() <= 200)) &&
+        (!('amount' in incoming()) || (incoming().amount is number)) &&
+        (!('status' in incoming()) || (incoming().status in ['paid', 'pending', 'overdue']));
       allow delete: if isEventMember(eventId);
     }
   }

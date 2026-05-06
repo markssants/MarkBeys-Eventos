@@ -24,7 +24,9 @@ export function Header({ profile, events, selectedEventId, setSelectedEventId }:
               </div>
               <Select value={selectedEventId} onValueChange={setSelectedEventId}>
                 <SelectTrigger className="w-[180px] md:w-[260px] border-none bg-transparent font-black text-white rounded-xl focus:ring-0 transition-all h-10 text-sm tracking-tight">
-                  <SelectValue placeholder="Selecione um evento" />
+                  <SelectValue placeholder="Selecione um evento">
+                    {activeEvent?.name}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="rounded-[1.5rem] bg-slate-900/95 border-white/10 backdrop-blur-xl text-slate-100 shadow-2xl">
                   {events.map((event) => (

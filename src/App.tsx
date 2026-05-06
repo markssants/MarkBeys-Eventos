@@ -141,7 +141,7 @@ function Landing({ handleLogin, loginLoading }: { handleLogin: () => void, login
             </div>
             
             <div className="space-y-4">
-              <h1 className="text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-pink-200 to-slate-400">
+              <h1 className="text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white via-pink-200 to-slate-400 font-outfit">
                 MARKS EVENTOS
               </h1>
               <p className="text-slate-400 text-lg leading-relaxed">

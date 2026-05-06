@@ -1,24 +1,24 @@
 import { useState, useEffect } from 'react';
-import { UserProfile, EventProject, OperationType } from '../../types';
+import { UserProfile, EventProject, OperationType, ViewType } from '../../types';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, auth, handleFirestoreError } from '../../firebase';
 import { Sidebar } from './Sidebar';
 import { Overview } from './Overview';
 import { KanbanBoard } from '../kanban/Board';
 import { DjAssets } from '../dj/DjAssets';
-import { Documents } from '../docs/Documents';
+import { Corregedoria } from '../corregedoria/Corregedoria';
+import { Files } from '../files/Files';
 import { Payments } from '../payments/Payments';
-import { DriveFiles } from '../drive/DriveFiles';
 import { EventSelector } from '../events/EventSelector';
 import { Header } from './Header';
+import { ProfileManagement } from './ProfileManagement';
+import { About } from './About';
 import { signOut } from 'firebase/auth';
 import { Palette } from 'lucide-react';
 
 interface DashboardProps {
   profile: UserProfile;
 }
-
-export type ViewType = 'overview' | 'arts' | 'dj' | 'docs' | 'payments' | 'drive';
 
 export function Dashboard({ profile }: DashboardProps) {
   const [activeView, setActiveView] = useState<ViewType>('overview');
@@ -73,7 +73,10 @@ export function Dashboard({ profile }: DashboardProps) {
         />
         
         <main className="flex-1 overflow-y-auto p-6 md:p-8">
-          {!selectedEventId && !loading && (
+          {activeView === 'profile' && <ProfileManagement profile={profile} />}
+          {activeView === 'about' && <About />}
+
+          {!selectedEventId && !loading && activeView !== 'profile' && activeView !== 'about' && (
             <div className="h-full flex items-center justify-center">
               <div className="text-center space-y-4">
                 <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto">
@@ -93,13 +96,13 @@ export function Dashboard({ profile }: DashboardProps) {
             </div>
           )}
 
-          {activeEvent && (
+          {activeEvent && activeView !== 'profile' && activeView !== 'about' && (
             <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
               {activeView === 'overview' && <Overview event={activeEvent} profile={profile} />}
               {activeView === 'arts' && <KanbanBoard event={activeEvent} profile={profile} />}
-              {activeView === 'dj' && <DjAssets event={activeEvent} profile={profile} />}
-              {activeView === 'docs' && <Documents event={activeEvent} profile={profile} />}
-              {activeView === 'drive' && <DriveFiles event={activeEvent} profile={profile} />}
+               {activeView === 'dj' && <DjAssets event={activeEvent} profile={profile} />}
+              {activeView === 'docs' && <Corregedoria event={activeEvent} profile={profile} />}
+              {activeView === 'files' && <Files event={activeEvent} profile={profile} />}
               {activeView === 'payments' && <Payments event={activeEvent} profile={profile} />}
             </div>
           )}

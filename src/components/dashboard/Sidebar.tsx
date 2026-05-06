@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { LayoutDashboard, Palette, Music, FileText, CreditCard, LogOut, Brush, Users } from "lucide-react";
-import { ViewType } from "./Dashboard";
-import { UserProfile } from "../../types";
+import { LayoutDashboard, Palette, Music, CreditCard, LogOut, Brush, Users, Gavel, FolderOpen } from "lucide-react";
+import { ViewType, UserProfile } from "../../types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -22,24 +21,35 @@ export function Sidebar({ activeView, setActiveView, profile, onLogout }: Sideba
     { id: 'overview' as ViewType, label: 'Resumo', icon: LayoutDashboard },
     { id: 'arts' as ViewType, label: 'Artes', icon: Palette },
     { id: 'dj' as ViewType, label: 'DJs & Presskits', icon: Music },
-    { id: 'docs' as ViewType, label: 'Corregedoria', icon: FileText },
-    { id: 'drive' as ViewType, label: 'Documentos', icon: FileText },
+    { id: 'files' as ViewType, label: 'Arquivos', icon: FolderOpen },
     { id: 'payments' as ViewType, label: 'Pagamentos', icon: CreditCard },
+    { id: 'docs' as ViewType, label: 'Corregedoria', icon: Gavel },
   ];
 
   return (
     <motion.aside 
       initial={false}
-      animate={{ width: isExpanded ? 256 : 88 }}
+      animate={{ width: isExpanded ? 260 : 88 }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className="h-screen glass-sidebar text-slate-400 flex flex-col z-50 overflow-hidden shrink-0"
     >
-      <div className={cn("flex flex-col flex-1 transition-all duration-300", isExpanded ? "p-6" : "p-4")}>
-        <div className="flex items-center space-x-3 text-white mb-10 mt-2 min-h-[40px] px-2">
-          <div className="w-10 h-10 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-xl flex items-center justify-center font-bold text-xl shadow-[0_0_15px_rgba(236,72,153,0.3)] shrink-0">
-            M
+      <div className="flex flex-col flex-1 p-4 transition-all duration-300">
+        <div 
+          onClick={() => setActiveView('about')}
+          className="flex items-center text-white mb-10 mt-2 min-h-[40px] px-2 overflow-hidden cursor-pointer group/logo hover:opacity-80 transition-all active:scale-95"
+        >
+          <div className={cn(
+            "w-12 h-12 bg-black rounded-2xl flex items-center justify-center overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)] shrink-0 mr-3 transition-transform p-1.5",
+            activeView === 'about' && "shadow-[0_0_30px_rgba(236,72,153,0.3)] scale-110"
+          )}>
+            <img 
+              src="/src/components/kanban/batcav.png" 
+              alt="Logo" 
+              className="w-full h-full object-contain"
+              referrerPolicy="no-referrer"
+            />
           </div>
           <AnimatePresence>
             {isExpanded && (
@@ -47,9 +57,12 @@ export function Sidebar({ activeView, setActiveView, profile, onLogout }: Sideba
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                className="font-bold tracking-tighter text-xl whitespace-nowrap overflow-hidden"
+                className={cn(
+                  "font-black tracking-tighter text-xl whitespace-nowrap overflow-hidden font-tight transition-colors",
+                  activeView === 'about' ? "text-pink-500" : "group-hover/logo:text-pink-400"
+                )}
               >
-                MARKS EVENTOS
+                MarksEventos
               </motion.span>
             )}
           </AnimatePresence>
@@ -68,13 +81,12 @@ export function Sidebar({ activeView, setActiveView, profile, onLogout }: Sideba
                   isActive 
                     ? "text-white bg-white/5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]" 
                     : "text-slate-500 hover:text-slate-200 hover:bg-white/5",
-                  isExpanded ? "w-full px-4 py-3.5 rounded-2xl" : "w-12 h-12 justify-center rounded-full mx-auto"
+                  "w-full px-2 py-3 rounded-2xl"
                 )}
               >
                 <div className={cn(
-                  "p-2 rounded-xl transition-all duration-300 shrink-0",
-                  isActive ? "bg-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)]" : "bg-white/5 text-slate-500 group-hover:bg-white/10",
-                  isExpanded ? "mr-3" : ""
+                  "w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-300 shrink-0 mr-3",
+                  isActive ? "bg-pink-500 text-white shadow-[0_0_15px_rgba(236,72,153,0.4)]" : "bg-white/5 text-slate-500 group-hover:bg-white/10"
                 )}>
                   <Icon className="w-4 h-4" />
                 </div>
@@ -104,13 +116,19 @@ export function Sidebar({ activeView, setActiveView, profile, onLogout }: Sideba
         </nav>
       </div>
 
-      <div className={cn("mt-auto space-y-6 transition-all duration-300", isExpanded ? "p-6" : "p-4")}>
-        <div className={cn(
-          "flex items-center bg-white/5 rounded-2xl border border-white/5 transition-all",
-          isExpanded ? "px-3 py-4 space-x-3" : "w-12 h-12 justify-center rounded-full mx-auto"
-        )}>
-          <div className="w-10 h-10 rounded-full bg-slate-800 border-2 border-pink-500/50 flex items-center justify-center text-slate-100 overflow-hidden shrink-0">
-            {profile.role === 'designer' ? <Palette className="w-5 h-5 text-pink-400" /> : <Users className="w-5 h-5 text-purple-400" />}
+      <div className="p-4 mt-auto space-y-4 transition-all duration-300">
+        <div 
+          onClick={() => setActiveView('profile')}
+          className={cn(
+            "flex items-center bg-white/5 rounded-2xl border border-white/5 transition-all px-2 py-3 overflow-hidden cursor-pointer hover:bg-white/10 group/profile",
+            activeView === 'profile' && "border-pink-500/30 bg-pink-500/5 shadow-[0_0_20px_rgba(236,72,153,0.1)]"
+          )}
+        >
+          <div className={cn(
+            "w-10 h-10 rounded-full flex items-center justify-center text-slate-100 overflow-hidden shrink-0 mr-3 transition-all",
+            activeView === 'profile' ? "bg-pink-500 shadow-lg scale-110" : "bg-slate-800 border-2 border-pink-500/50 group-hover/profile:border-pink-500"
+          )}>
+            {profile.role === 'designer' ? <Palette className="w-5 h-5 text-current" /> : <Users className="w-5 h-5 text-current" />}
           </div>
           <AnimatePresence>
             {isExpanded && (
@@ -120,7 +138,7 @@ export function Sidebar({ activeView, setActiveView, profile, onLogout }: Sideba
                 exit={{ opacity: 0, scale: 0.9 }}
                 className="flex-1 min-w-0"
               >
-                <p className="text-sm font-bold text-white truncate">{profile.name}</p>
+                <p className="text-sm font-bold text-white truncate group-hover/profile:text-pink-400 transition-colors">{profile.name}</p>
                 <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">
                   {profile.role === 'designer' ? 'Designer' : 'Contratante'}
                 </p>
@@ -133,15 +151,27 @@ export function Sidebar({ activeView, setActiveView, profile, onLogout }: Sideba
           variant="ghost" 
           onClick={onLogout}
           className={cn(
-            "justify-between items-center text-slate-500 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all",
-            isExpanded ? "w-full px-4 py-2 rounded-xl" : "w-12 h-12 p-0 justify-center rounded-full mx-auto"
+            "justify-start items-center text-slate-500 hover:text-white hover:bg-white/5 border border-transparent hover:border-white/10 transition-all w-full px-2 py-2 rounded-xl"
           )}
         >
-          <div className="flex items-center">
-            <LogOut className={cn("w-4 h-4 text-pink-500", isExpanded ? "mr-2" : "")} />
-            {isExpanded && <span>Sair</span>}
+          <div className="flex items-center flex-1 min-w-0">
+            <div className="w-10 h-10 flex items-center justify-center mr-3 shrink-0">
+              <LogOut className="w-4 h-4 text-pink-500" />
+            </div>
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  className="flex items-center justify-between flex-1 min-w-0"
+                >
+                  <span className="truncate">Sair</span>
+                  <span className="text-[9px] text-slate-400 font-black opacity-70 uppercase tracking-widest ml-2 shrink-0">v1.4</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-          {isExpanded && <span className="text-[9px] text-slate-400 font-black opacity-70 uppercase tracking-widest ml-2">v1.3</span>}
         </Button>
       </div>
     </motion.aside>
